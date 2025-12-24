@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotimaker</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            max-width: 820px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 14px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .hint {
+            opacity: .7;
+            margin-top: 8px;
+        }
+
+        .loading {
+            margin-top: 12px;
+            font-weight: 600;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            background: #f6f6f6;
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .card {
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+        }
+
+        ol {
+            margin: 8px 0 0 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spotimaker</h1>
+    <p><b>Ruh halini yaz. Playlist’in hazýr.</b></p>
+
+    <textarea id="text" placeholder="Write like you talk. Mood + place + feeling is enough. Example: late night drive, calm but confident."></textarea>
+    <div class="hint">Tell us the mood — we’ll handle the music.</div>
+    <div style="margin-top: 12px;">
+        <button id="btn">Create playlist</button>
+    </div>
+
+    <div id="loading" class="loading" style="display:none;">Catching your vibe…</div>
+    <div id="out"></div>
+
+    <script>
+      const btn = document.getElementById("btn");
+      const text = document.getElementById("text");
+      const out = document.getElementById("out");
+      const loading = document.getElementById("loading");
+
+      function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+      }
+
+      btn.onclick = async () => {
+        out.innerHTML = "";
+        loading.style.display = "block";
+        btn.disabled = true;
+
+        try {
+          const resp = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text.value })
+          });
+
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || "Request failed");
+
+          const tracks = data.tracks.map(t => `<li>${escapeHtml(t.artist)} – ${escapeHtml(t.song)}</li>`).join("");
+
+          out.innerHTML = `
+            <div class="card">
+              <div><b>This one’s made just for you.</b></div>
+              <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
+              <div style="opacity:.85">${escapeHtml(data.description)}</div>
+              <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
+              <div style="margin-top:10px;">
+                <b>Tracklist</b>
+                <ol>${tracks}</ol>
+              </div>
+              <details style="margin-top:10px;">
+                <summary>Show JSON</summary>
+                <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+              </details>
+            </div>
+          `;
+        } catch (e) {
+          out.innerHTML = `<pre>${escapeHtml(String(e))}</pre>`;
+        } finally {
+          loading.style.display = "none";
+          btn.disabled = false;
+        }
+      };
+    </script>
+</body>
+</html>
