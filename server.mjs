@@ -84,6 +84,11 @@ Emotional arc rule:
 - Tracks 16–20: resolution (calm/strength/focus etc. based on user input)
 
 No cringe. No corporate tone.
+IMPORTANT:
+Use plain ASCII characters only.
+Do not use smart quotes, special punctuation, or non-ASCII symbols.
+Use simple apostrophes and standard characters only.
+
     `.trim();
 
     // Responses API (OpenAI’nin yeni projeler için önerdiði arayüz) :contentReference[oaicite:1]{index=1}
