@@ -272,6 +272,8 @@ STRICT RULES:
 - Avoid generic or unrelated songs.
 - Use plain ASCII characters only.
 - Output clean, readable text.
+-Example songs are emotional anchors.
+-Do not drift far from the genre, emotional tone, and tempo of the example song.
 
 Critical rules:
 -Absolutely no placeholders.
@@ -286,11 +288,17 @@ Language rule:
 - If the user writes in Turkish, set language="tr" and write title+description in Turkish.
 - If the user writes in English, set language="en" and write title+description in English.
 - Do not mix languages in title/description.
+-If the request is in Turkish and emotional, avoid aggressive Turkish rap or hard rock unless explicitly requested.
 
 Emotional arc rule:
 - Tracks 1–5: ease-in / set the mood
 - Tracks 6–15: main emotional peak
 - Tracks 16–20: resolution based on user input
+-Energy interpretation rule:
+-Energy refers to emotional flow and momentum, not loudness or aggression.
+-Higher energy does NOT mean aggressive rap, trap, EDM, or hard rock unless explicitly requested.
+-For energy levels 6-7, prefer midtempo, melodic, emotionally driven tracks that feel dynamic but controlled.
+
 
 
 No cringe. No corporate tone.
