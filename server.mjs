@@ -126,5 +126,10 @@ Use simple apostrophes and standard characters only.
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to generate playlist" });
+
+        setInterval(() => {
+            // keep process alive
+        }, 1000 * 60 * 5);
+
     }
 });
