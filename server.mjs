@@ -60,13 +60,22 @@ const playlistSchema = {
 };
 
 app.post("/api/generate", async (req, res) => {
-  try {
-    const userText = String(req.body?.text ?? "").trim();
-    if (!userText) return res.status(400).json({ error: "Missing text" });
+    try {
+        const userText = String(req.body?.text ?? "").trim();
+        if (!userText) return res.status(400).json({ error: "Missing text" });
 
-    const systemPrompt = `
+        const systemPrompt = `
 You are an expert music curator and playlist designer.
 You deeply understand mood, emotion, tempo, and how music guides feelings over time.
+
+STRICT RULES:
+- Follow the user's mood, energy, language, and era strictly.
+- If the user provides example songs or artists, include at least one of them in the playlist.
+- Match the overall vibe to the examples given.
+- Do NOT ignore constraints.
+- Avoid generic or unrelated songs.
+- Use plain ASCII characters only.
+- Output clean, readable text.
 
 Critical rules:
 - Output MUST be valid JSON only, matching the provided schema.
@@ -81,46 +90,41 @@ Language rule:
 Emotional arc rule:
 - Tracks 1–5: ease-in / set the mood
 - Tracks 6–15: main emotional peak
-- Tracks 16–20: resolution (calm/strength/focus etc. based on user input)
+- Tracks 16–20: resolution based on user input
 
 No cringe. No corporate tone.
+
 IMPORTANT:
 Use plain ASCII characters only.
 Do not use smart quotes, special punctuation, or non-ASCII symbols.
 Use simple apostrophes and standard characters only.
+`.trim();
 
-    `.trim();
+        const userPrompt = `User request: ${userText}`;
 
-    // Responses API (OpenAI’nin yeni projeler için önerdiði arayüz) :contentReference[oaicite:1]{index=1}
-      const response = await client.responses.create({
-          model: "gpt-5-mini",
-          input: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: `User input: ${userText}` }
-          ],
-          text: {
-              format: {
-                  type: "json_schema",
-                  name: playlistSchema.name,
-                  schema: playlistSchema.schema,
-                  strict: true
-              }
-          }
-      });
+        const response = await client.responses.create({
+            model: "gpt-5-mini",
+            input: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ],
+            text: {
+                format: {
+                    type: "json_schema",
+                    name: playlistSchema.name,
+                    schema: playlistSchema.schema,
+                    strict: true
+                }
+            }
+        });
 
+        const jsonText = response.output_text;
+        const data = JSON.parse(jsonText);
 
-    // SDK: response.output_text genelde final JSON string’i verir :contentReference[oaicite:3]{index=3}
-    const jsonText = response.output_text;
-    const data = JSON.parse(jsonText);
-
-    res.json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to generate playlist" });
-  }
-});
-
-const port = process.env.PORT || 8787;
-app.listen(port, () => {
-  console.log(`Spotimaker running on http://localhost:${port}`);
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        return res.json(data);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Failed to generate playlist" });
+    }
 });
