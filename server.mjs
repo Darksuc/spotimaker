@@ -194,6 +194,45 @@ app.get("/callback", async (req, res) => {
 // AI generate
 app.post("/api/generate", async (req, res) => {
     try {
+        const spotifyToken = getCookie(req, "spotify_access_token");
+        let spotifyProfileText = "";
+
+        if (spotifyToken) {
+            try {
+                const [tracksRes, artistsRes] = await Promise.all([
+                    fetch("https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term", {
+                        headers: { Authorization: `Bearer ${spotifyToken}` }
+                    }),
+                    fetch("https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term", {
+                        headers: { Authorization: `Bearer ${spotifyToken}` }
+                    })
+                ]);
+
+                if (tracksRes.ok && artistsRes.ok) {
+                    const tracksJson = await tracksRes.json();
+                    const artistsJson = await artistsRes.json();
+
+                    const topTracks = (tracksJson.items || [])
+                        .map(t => `${t.name} by ${t.artists?.[0]?.name || ""}`)
+                        .join(", ");
+
+                    const topArtists = (artistsJson.items || [])
+                        .map(a => a.name)
+                        .join(", ");
+
+                    spotifyProfileText = `
+User listening profile:
+Top artists: ${topArtists}
+Top tracks: ${topTracks}
+
+Use this profile to personalize the playlist.
+`.trim();
+                }
+            } catch (e) {
+                console.error("Spotify profile fetch failed", e);
+            }
+        }
+
         const userText = String(req.body?.text ?? "").trim();
         if (!userText) return res.status(400).json({ error: "Missing text" });
 
@@ -224,11 +263,14 @@ Emotional arc rule:
 - Tracks 6–15: main emotional peak
 - Tracks 16–20: resolution based on user input
 
+
 No cringe. No corporate tone.
 IMPORTANT:
 Use plain ASCII characters only.
 Do not use smart quotes, special punctuation, or non-ASCII symbols.
 Use simple apostrophes and standard characters only.
+${spotifyProfileText}
+
     `.trim();
 
         const userPrompt = `User request: ${userText}`;
