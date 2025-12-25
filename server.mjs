@@ -80,6 +80,31 @@ const playlistSchema = {
 };
 
 // --- ROUTES ---
+app.get("/debug/spotify", async (req, res) => {
+    const token = getCookie(req, "spotify_access_token");
+    if (!token) return res.json({ ok: false, reason: "no spotify_access_token cookie" });
+
+    try {
+        const meRes = await fetch("https://api.spotify.com/v1/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const me = await meRes.json();
+
+        const tracksRes = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=3&time_range=short_term", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const tracks = await tracksRes.json();
+
+        return res.json({
+            ok: true,
+            me: { id: me.id, display_name: me.display_name },
+            sampleTopTracks: (tracks.items || []).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`)
+        });
+    } catch (e) {
+        console.error(e);
+        return res.json({ ok: false, error: String(e) });
+    }
+});
 
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
