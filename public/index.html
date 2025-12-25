@@ -20,6 +20,7 @@
         }
 
         button {
+
             padding: 10px 14px;
             font-size: 16px;
             cursor: pointer;
@@ -56,67 +57,105 @@
 </head>
 <body>
     <h1>Spotimaker</h1>
-    <p><b>Ruh halini yaz. Playlist’in hazýr.</b></p>
+    <p><b>Ruh halini yaz. Playlistin hazir.</b></p>
 
     <textarea id="text" placeholder="Write like you talk. Mood + place + feeling is enough. Example: late night drive, calm but confident."></textarea>
-    <div class="hint">Tell us the mood — we’ll handle the music.</div>
+    <div class="hint">Tell us the mood , we will handle the music.</div>
     <div style="margin-top: 12px;">
         <button id="btn">Create playlist</button>
     </div>
 
-    <div id="loading" class="loading" style="display:none;">Catching your vibe…</div>
+    <div id="loadingWrap" style="display:none; margin-top:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">Building your playlist</div>
+        <div style="width:100%; max-width:520px; height:10px; border:1px solid #ddd; border-radius:999px; overflow:hidden;">
+            <div id="loadingBar" style="height:100%; width:0%; border-radius:999px; background:#111;"></div>
+        </div>
+        <div style="font-size:12px; opacity:0.65; margin-top:6px;">This usually takes a few seconds</div>
+    </div>
+
     <div id="out"></div>
 
     <script>
-      const btn = document.getElementById("btn");
-      const text = document.getElementById("text");
-      const out = document.getElementById("out");
-      const loading = document.getElementById("loading");
+        const btn = document.getElementById("btn");
+        const text = document.getElementById("text");
+        const out = document.getElementById("out");
+        const loadingWrap = document.getElementById("loadingWrap");
+        const loadingBar = document.getElementById("loadingBar");
+        let loadingTimer = null;
 
-      function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-      }
+        function showLoadingBar() {
+            loadingWrap.style.display = "block";
+            loadingBar.style.width = "0%";
 
-      btn.onclick = async () => {
-        out.innerHTML = "";
-        loading.style.display = "block";
-        btn.disabled = true;
+            let p = 0;
+            clearInterval(loadingTimer);
 
-        try {
-          const resp = await fetch("/api/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: text.value })
-          });
-
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || "Request failed");
-
-          const tracks = data.tracks.map(t => `<li>${escapeHtml(t.artist)} – ${escapeHtml(t.song)}</li>`).join("");
-
-          out.innerHTML = `
-            <div class="card">
-              <div><b>This one’s made just for you.</b></div>
-              <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
-              <div style="opacity:.85">${escapeHtml(data.description)}</div>
-              <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
-              <div style="margin-top:10px;">
-                <b>Tracklist</b>
-                <ol>${tracks}</ol>
-              </div>
-              <details style="margin-top:10px;">
-                <summary>Show JSON</summary>
-                <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
-              </details>
-            </div>
-          `;
-        } catch (e) {
-          out.innerHTML = `<pre>${escapeHtml(String(e))}</pre>`;
-        } finally {
-          loading.style.display = "none";
-          btn.disabled = false;
+            loadingTimer = setInterval(() => {
+                const step = p < 70 ? 3 : p < 90 ? 1 : 0.2;
+                p = Math.min(p + step, 95);
+                loadingBar.style.width = `${p}%`;
+            }, 120);
         }
-      };
+
+        function hideLoadingBar() {
+            clearInterval(loadingTimer);
+            loadingBar.style.width = "100%";
+
+            setTimeout(() => {
+                loadingWrap.style.display = "none";
+                loadingBar.style.width = "0%";
+            }, 250);
+        }
+
+
+        function escapeHtml(s) {
+            return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        }
+
+        btn.onclick = async () => {
+            out.innerHTML = "";
+            showLoadingBar();
+
+            btn.disabled = true;
+
+            try {
+                const resp = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: text.value })
+                });
+
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || "Request failed");
+
+                const tracks = data.tracks.map(t => `<li>${escapeHtml(t.artist)} - ${escapeHtml(t.song)}</li>`).join("");
+
+
+                out.innerHTML = `
+                <div class="card">
+                  <div><b>This one's made just for you.</b></div>
+
+                  <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
+                  <div style="opacity:.85">${escapeHtml(data.description)}</div>
+                  <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
+                  <div style="margin-top:10px;">
+                    <b>Tracklist</b>
+                    <ol>${tracks}</ol>
+                  </div>
+                  <details style="margin-top:10px;">
+                    <summary>Show JSON</summary>
+                    <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                  </details>
+                </div>
+              `;
+            } catch (e) {
+                out.innerHTML = `<pre>${escapeHtml(String(e))}</pre>`;
+            } finally {
+                hideLoadingBar();
+
+                btn.disabled = false;
+            }
+        };
     </script>
 </body>
 </html>
