@@ -101,7 +101,7 @@ app.get("/login", (req, res) => {
         response_type: "code",
         client_id: process.env.SPOTIFY_CLIENT_ID,
         scope,
-        redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
+        redirect_uri: process.env.SPOTIFY_REDIRECT_URI.trim(),
         state
     });
 
@@ -122,7 +122,7 @@ app.get("/callback", async (req, res) => {
         const body = new URLSearchParams({
             grant_type: "authorization_code",
             code,
-            redirect_uri: process.env.SPOTIFY_REDIRECT_URI
+            redirect_uri: process.env.SPOTIFY_REDIRECT_URI.trim()
         });
 
         const auth = Buffer.from(
