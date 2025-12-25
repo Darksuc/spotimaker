@@ -124,6 +124,45 @@ app.get("/callback", async (req, res) => {
             code,
             redirect_uri: process.env.SPOTIFY_REDIRECT_URI.trim()
         });
+        function requireSpotifyToken(req, res) {
+            const token = getCookie(req, "spotify_access_token");
+            if (!token) {
+                res.status(401).json({ error: "Not logged in to Spotify. Go to /login" });
+                return null;
+            }
+            return token;
+        }
+        app.get("/spotify/top", async (req, res) => {
+            try {
+                const token = requireSpotifyToken(req, res);
+                if (!token) return;
+
+                const timeRange = String(req.query.time_range || "short_term"); // short_term | medium_term | long_term
+
+                const [tracksRes, artistsRes] = await Promise.all([
+                    fetch(`https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=${timeRange}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }),
+                    fetch(`https://api.spotify.com/v1/me/top/artists?limit=10&time_range=${timeRange}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                ]);
+
+                const tracksJson = await tracksRes.json();
+                const artistsJson = await artistsRes.json();
+
+                if (!tracksRes.ok) return res.status(500).json({ error: "Top tracks failed", details: tracksJson });
+                if (!artistsRes.ok) return res.status(500).json({ error: "Top artists failed", details: artistsJson });
+
+                const topTracks = (tracksJson.items || []).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim());
+                const topArtists = (artistsJson.items || []).map(a => a.name);
+
+                return res.json({ time_range: timeRange, topTracks, topArtists });
+            } catch (err) {
+                console.error(err);
+                return res.status(500).json({ error: "Spotify top fetch failed" });
+            }
+        });
 
         const auth = Buffer.from(
             process.env.SPOTIFY_CLIENT_ID + ":" + process.env.SPOTIFY_CLIENT_SECRET
