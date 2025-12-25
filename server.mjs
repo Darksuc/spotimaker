@@ -274,6 +274,10 @@ STRICT RULES:
 - Output clean, readable text.
 
 Critical rules:
+-Absolutely no placeholders.
+-Every track must be a real, widely known released song on Spotify.
+-If unsure, replace with a safer mainstream real song.
+-Never output "Alternative Track", "Project", "Artist - Song" guesses, or generic labels.
 - Output MUST be valid JSON only, matching the provided schema.
 - Do not invent fake songs. Prefer widely available tracks.
 - Avoid repeating the same artist more than 2 times.
