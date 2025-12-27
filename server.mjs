@@ -281,6 +281,9 @@ STRICT RULES:
 -Do not drift far from the genre, emotional tone, and tempo of the example song.
 
 Critical rules:
+-Never ask for confirmation. Never ask questions.
+-Do not write "approval needed" or similar.
+-Always produce the final playlist output
 -Absolutely no placeholders.
 -Every track must be a real, widely known released song on Spotify.
 -If unsure, replace with a safer mainstream real song.
@@ -317,6 +320,14 @@ ${spotifyProfileText}
 
         const userPrompt = `User request: ${userText}\nrequested_count: ${requestedCount}`;
 
+        // Make schema exact per request (no escaping to 50 etc.)
+        const exactSchema = structuredClone(playlistSchema);
+        exactSchema.schema.properties.tracks.minItems = requestedCount;
+        exactSchema.schema.properties.tracks.maxItems = requestedCount;
+        exactSchema.schema.properties.energy_curve.minItems = requestedCount;
+        exactSchema.schema.properties.energy_curve.maxItems = requestedCount;
+
+
         const response = await client.responses.create({
             model: "gpt-5-mini",
             input: [
@@ -327,7 +338,7 @@ ${spotifyProfileText}
                 format: {
                     type: "json_schema",
                     name: playlistSchema.name,
-                    schema: playlistSchema.schema,
+                    schema: exactSchema.schema,
                     strict: true
                 }
             }
