@@ -57,13 +57,13 @@ const playlistSchema = {
             energy_curve: {
                 type: "array",
                 minItems: 20,
-                maxItems: 20,
+                maxItems: 200,
                 items: { type: "integer", minimum: 1, maximum: 10 }
             },
             tracks: {
                 type: "array",
                 minItems: 20,
-                maxItems: 20,
+                maxItems: 200,
                 items: {
                     type: "object",
                     additionalProperties: false,
@@ -259,12 +259,17 @@ Use this profile to personalize the playlist.
         }
 
         const userText = String(req.body?.text ?? "").trim();
+        const requestedCountRaw = Number(req.body?.count ?? 20);
+        const requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
+
         if (!userText) return res.status(400).json({ error: "Missing text" });
 
         const systemPrompt = `
 You are an expert music curator and playlist designer.
 You deeply understand mood, emotion, tempo, and how music guides feelings over time.
 STRICT RULES:
+-You will be given requested_count.
+-You MUST return exactly requested_count tracks, and energy_curve must have exactly requested_count items
 - Follow the user's mood, energy, language, and era strictly.
 - If the user provides example songs or artists, include at least one of them in the playlist.
 - Match the overall vibe to the examples given.
@@ -310,7 +315,7 @@ ${spotifyProfileText}
 
     `.trim();
 
-        const userPrompt = `User request: ${userText}`;
+        const userPrompt = `User request: ${userText}\nrequested_count: ${requestedCount}`;
 
         const response = await client.responses.create({
             model: "gpt-5-mini",

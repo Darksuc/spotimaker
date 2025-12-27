@@ -63,6 +63,16 @@
     <div class="hint">Ruh halini soyle, muzigi biz hallederiz.</div>
     <div style="margin-top: 12px;">
         <button id="btn">Create playlist</button>
+        <div style="margin-top:10px;">
+            <label for="count" style="font-size:14px; opacity:0.8;">
+                Sarki sayisi: <b><span id="countVal">20</span></b>
+            </label>
+            <input id="count" type="range" min="20" max="200" step="10" value="20" style="width:100%; max-width:520px; display:block; margin-top:6px;">
+            <div style="font-size:12px; opacity:0.6; margin-top:4px;">
+                Free: gunluk 50 sarki Spotify'a kaydetme hakki (yakinda).
+            </div>
+        </div>
+
         <a id="spotifyLink" href="/login" style="margin-left:10px; text-decoration:none; padding:10px 14px; border:1px solid #ddd; border-radius:10px; display:inline-block;">
             Spotify bagla
         </a>
@@ -88,6 +98,14 @@
         const loadingBar = document.getElementById("loadingBar");
         const spotifyStatus = document.getElementById("spotifyStatus");
         const spotifyLink = document.getElementById("spotifyLink");
+        const count = document.getElementById("count");
+        const countVal = document.getElementById("countVal");
+
+        count.oninput = () => {
+            countVal.textContent = count.value;
+        };
+
+
 
         async function checkSpotify() {
             try {
@@ -155,7 +173,7 @@
                 const resp = await fetch("/api/generate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: text.value })
+                    body: JSON.stringify({ text: text.value, count: Number(count.value) })
                 });
 
                 const data = await resp.json();
