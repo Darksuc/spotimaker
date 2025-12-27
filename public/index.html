@@ -81,11 +81,13 @@
     </div>
 
     <div id="loadingWrap" style="display:none; margin-top:12px;">
-        <div style="font-weight:600; margin-bottom:6px;">Playlist hazırlanıyor</div>
+        <div style="font-weight:600; margin-bottom:6px;">
+            Playlist hazirlaniyor<span id="dots"></span>
+        </div>
         <div style="width:100%; max-width:520px; height:10px; border:1px solid #ddd; border-radius:999px; overflow:hidden;">
             <div id="loadingBar" style="height:100%; width:0%; border-radius:999px; background:#111;"></div>
         </div>
-        <div style="font-size:12px; opacity:0.65; margin-top:6px;">This usually takes a few seconds</div>
+        <div style="font-size:12px; opacity:0.65; margin-top:6px;">Genelde birkac saniye surer</div>
     </div>
 
     <div id="out"></div>
@@ -100,6 +102,27 @@
         const spotifyLink = document.getElementById("spotifyLink");
         const count = document.getElementById("count");
         const countVal = document.getElementById("countVal");
+        const dots = document.getElementById("dots");
+let dotsTimer = null;
+
+function startDots() {
+  if (!dots) return;
+  let i = 0;
+  dots.textContent = "";
+  clearInterval(dotsTimer);
+  dotsTimer = setInterval(() => {
+    i = (i + 1) % 4;
+    dots.textContent = ".".repeat(i);
+  }, 350);
+}
+
+function stopDots() {
+  if (!dots) return;
+  clearInterval(dotsTimer);
+  dotsTimer = null;
+  dots.textContent = "";
+}
+
 
         count.oninput = () => {
             countVal.textContent = count.value;
@@ -135,6 +158,8 @@
         let loadingTimer = null;
 
         function showLoadingBar() {
+            startDots();
+
             loadingWrap.style.display = "block";
             loadingBar.style.width = "0%";
 
@@ -149,6 +174,8 @@
         }
 
         function hideLoadingBar() {
+            stopDots();
+
             clearInterval(loadingTimer);
             loadingBar.style.width = "100%";
 
