@@ -338,6 +338,113 @@ ${spotifyProfileText}
         return res.status(500).json({ error: "Failed to generate playlist" });
     }
 });
+app.post("/spotify/save", async (req, res) => {
+    try {
+        const token = getCookie(req, "spotify_access_token");
+        if (!token) return res.status(401).json({ error: "Spotify not connected" });
+
+        const title = String(req.body?.title || "").trim() || "Spotimaker Playlist";
+        const description = String(req.body?.description || "").trim();
+        const tracks = Array.isArray(req.body?.tracks) ? req.body.tracks : [];
+
+        if (tracks.length < 1) return res.status(400).json({ error: "No tracks provided" });
+
+        // 1) Get current user
+        const meRes = await fetch("https://api.spotify.com/v1/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const me = await meRes.json();
+        if (!meRes.ok) return res.status(500).json({ error: "Failed to read Spotify profile", details: me });
+
+        // 2) Create playlist
+        const createRes = await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: title,
+                description: description || "Made with Spotimaker",
+                public: false
+            })
+        });
+
+        const created = await createRes.json();
+        if (!createRes.ok) return res.status(500).json({ error: "Failed to create playlist", details: created });
+
+        const playlistId = created.id;
+
+        // helper: search a track URI
+        async function findTrackUri(artist, song) {
+            const q = `track:${song} artist:${artist}`;
+            const url = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`;
+
+            const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            const j = await r.json();
+            if (!r.ok) return null;
+
+            const item = j?.tracks?.items?.[0];
+            return item?.uri || null;
+        }
+
+        // 3) Resolve URIs
+        const uris = [];
+        const skipped = [];
+
+        for (const t of tracks) {
+            const artist = String(t.artist || "").trim();
+            const song = String(t.song || "").trim();
+            if (!artist || !song) continue;
+
+            const uri = await findTrackUri(artist, song);
+            if (uri) uris.push(uri);
+            else skipped.push({ artist, song });
+        }
+
+        if (uris.length === 0) {
+            return res.status(400).json({
+                error: "No tracks matched on Spotify",
+                playlist: created,
+                skipped
+            });
+        }
+
+        // 4) Add to playlist (Spotify allows up to 100 URIs per request)
+        for (let i = 0; i < uris.length; i += 100) {
+            const chunk = uris.slice(i, i + 100);
+            const addRes = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ uris: chunk })
+            });
+
+            const addJson = await addRes.json();
+            if (!addRes.ok) {
+                return res.status(500).json({ error: "Failed adding tracks", details: addJson, created, skipped });
+            }
+        }
+
+        return res.json({
+            ok: true,
+            added: uris.length,
+            requested: tracks.length,
+            skipped,
+            playlist: {
+                id: playlistId,
+                name: created.name,
+                url: created.external_urls?.spotify || null
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: "Spotify save failed" });
+    }
+});
+
 
 // static LAST
 app.use(express.static(path.join(__dirname, "public")));
