@@ -20,7 +20,6 @@
         }
 
         button {
-
             padding: 10px 14px;
             font-size: 16px;
             cursor: pointer;
@@ -54,11 +53,128 @@
             margin: 8px 0 0 18px;
         }
     </style>
+    :root{
+    --bg:#0b0b0f;
+    --card:#12121a;
+    --muted:rgba(255,255,255,.72);
+    --text:#fff;
+    --line:rgba(255,255,255,.12);
+    --accent:#22c55e;
+    --accent2:#3b82f6;
+    }
+
+    body{
+    background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.18), transparent 60%),
+    radial-gradient(1000px 700px at 80% 10%, rgba(59,130,246,.14), transparent 60%),
+    var(--bg);
+    color:var(--text);
+    }
+
+    .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:14px;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background: rgba(18,18,26,.75);
+    backdrop-filter: blur(10px);
+    }
+
+    .brand{display:flex; align-items:center; gap:12px;}
+    .logo{
+    width:44px; height:44px;
+    border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line);
+    background: linear-gradient(135deg, rgba(34,197,94,.18), rgba(59,130,246,.14));
+    }
+
+    .brand-name{font-weight:900; letter-spacing:.2px; font-size:18px;}
+    .brand-sub{font-size:13px; color:var(--muted);}
+
+    .nav{display:flex; align-items:center; gap:10px;}
+    .navlink{
+    color:var(--muted);
+    text-decoration:none;
+    padding:10px 10px;
+    border-radius:12px;
+    }
+    .navlink:hover{background: rgba(255,255,255,.05); color:#fff;}
+
+    .navbtn{
+    color:#0b0b0f;
+    background: #fff;
+    text-decoration:none;
+    padding:10px 12px;
+    border-radius:12px;
+    font-weight:900;
+    }
+    .navbtn:hover{opacity:.92;}
+
+    .hero{margin-top:18px; margin-bottom:14px;}
+    .h1{margin:0 0 6px 0; font-size:26px; letter-spacing:-.3px;}
+    .p{margin:0; color:var(--muted); line-height:1.5;}
+
+    textarea{
+    border-radius:16px;
+    border:1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color:#fff;
+    outline:none;
+    }
+
+    button{
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:#0b0b0f;
+    font-weight:900;
+    }
+    button:disabled{opacity:.6; cursor:not-allowed;}
+
+    .card{
+    background: rgba(18,18,26,.75);
+    border:1px solid var(--line);
+    border-radius:16px;
+    }
+
+    pre{
+    background: rgba(255,255,255,.04);
+    border:1px solid var(--line);
+    }
+    .hint{color:var(--muted);}
+
 </head>
 <body>
-    <h1>Spotimaker</h1>
-    <p><b>Ruh halini yaz. Playlist’in hazır.</b></p>
+    <header class="topbar">
+        <div class="brand">
+            <div class="logo" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                    <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+            </div>
+            <div>
+                <div class="brand-name">Spotimaker</div>
+                <div class="brand-sub">Ruh haline gore playlist.</div>
+                <div id="spotifyStatus" class="brand-sub" style="margin-top:4px;"></div>
+            </div>
+        </div>
 
+        <nav class="nav">
+            <a href="/premium.html" class="navlink">Premium</a>
+            <a id="spotifyLink" href="/login" class="navbtn">Spotify bagla</a>
+        </nav>
+    </header>
+    <div class="hero">
+        <h1 class="h1">Ruh halini yaz, playlistin hazir.</h1>
+        <p class="p">Mood + ortam + his yeter. Spotify hesabina kaydetmek istersen tek tik.</p>
+    </div>
+sgt
 <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter. Ornek: gece surusu, sakin ama kendinden emin."></textarea>
     <div class="hint">Ruh halini söyle, müziği bize bırak.</div>
     <div style="margin-top: 12px;">
@@ -231,27 +347,27 @@
 
                 out.innerHTML = `
 
-                                <div class="card">
-                                <div><b>Bu liste sana göre hazırlandı.</b></div>
+                                        <div class="card">
+                                        <div><b>Bu liste sana göre hazırlandı.</b></div>
 
-                                  <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
-                                  <div style="opacity:.85">${escapeHtml(data.description)}</div>
-                                  <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
-                                  <div style="margin-top:10px;">
-                                  <div style="margin-top:12px;">
-      <button id="saveSpotifyBtn">Spotify'a ekle</button>
-      <span id="saveSpotifyMsg" style="margin-left:10px; opacity:0.75;"></span>
+                                          <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
+                                          <div style="opacity:.85">${escapeHtml(data.description)}</div>
+                                          <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
+                                          <div style="margin-top:10px;">
+                                          <div style="margin-top:12px;">
+              <button id="saveSpotifyBtn">Spotify'a ekle</button>
+              <span id="saveSpotifyMsg" style="margin-left:10px; opacity:0.75;"></span>
 </div>
 
-                                    <b>Tracklist</b>
-                                    <ol>${tracks}</ol>
-                                  </div>
-                                  <details style="margin-top:10px;">
-                                    <summary>Show JSON</summary>
-                                    <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
-                                  </details>
-                                </div>
-                              `;
+                                            <b>Tracklist</b>
+                                            <ol>${tracks}</ol>
+                                          </div>
+                                          <details style="margin-top:10px;">
+                                            <summary>Show JSON</summary>
+                                            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                                          </details>
+                                        </div>
+                                      `;
                 const saveBtn = document.getElementById("saveSpotifyBtn");
                 const saveMsg = document.getElementById("saveSpotifyMsg");
 
