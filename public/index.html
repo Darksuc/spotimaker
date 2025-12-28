@@ -672,6 +672,46 @@
 
         // sayfa acilinca spotify durumu
         refreshSpotifyStatus();
+        (async function refreshSpotifyStatus() {
+            try {
+                const r = await fetch("/api/me", { credentials: "include" });
+                const j = await r.json();
+
+                const statusEl = document.getElementById("spotifyStatus");
+                const linkEl = document.getElementById("spotifyLink");
+
+                if (!statusEl || !linkEl) return;
+
+                if (j && j.ok && j.me) {
+                    statusEl.textContent = "Spotify bagli: " + (j.me.display_name || "OK");
+                    statusEl.style.background = "rgba(34,197,94,.20)";
+                    statusEl.style.color = "#fff";
+
+                    // bagliyken de tiklanabilir kalsin istersen:
+                    // linkEl.textContent = "Spotify bagli";
+                    // linkEl.href = "/login"; // hesap degistirmek icin yine login'e gidebilir
+                    linkEl.textContent = "Spotify bagli (degistir)";
+                    linkEl.href = "/login";
+                    linkEl.style.pointerEvents = "auto";
+                    linkEl.style.opacity = "1";
+                } else {
+                    statusEl.textContent = "Spotify bagli degil";
+                    statusEl.style.background = "rgba(255,255,255,.08)";
+                    statusEl.style.color = "rgba(255,255,255,.72)";
+
+                    linkEl.textContent = "Spotify bagla";
+                    linkEl.href = "/login";
+                    linkEl.style.pointerEvents = "auto";
+                    linkEl.style.opacity = "1";
+                }
+            } catch (e) {
+                // sessiz gec
+            }
+        })();
+        document.getElementById("spotifyLink")?.addEventListener("click", () => {
+            console.log("spotifyLink clicked");
+        });
+
     </script>
 </body>
 </html>
