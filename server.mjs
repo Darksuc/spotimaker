@@ -188,6 +188,31 @@ app.get("/callback", async (req, res) => {
                 return res.status(500).json({ error: "Spotify top fetch failed" });
             }
         });
+        app.get("/api/me", async (req, res) => {
+            try {
+                const token = getCookie(req, "spotify_access_token");
+                if (!token) return res.status(200).json({ ok: false });
+
+                const r = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const data = await r.json();
+                if (!r.ok) {
+                    console.error("Spotify /me error:", data);
+                    return res.status(200).json({ ok: false });
+                }
+
+                return res.json({ ok: true, me: { id: data.id, display_name: data.display_name } });
+            } catch (e) {
+                console.error(e);
+                return res.status(200).json({ ok: false });
+            }
+        });
+
+        // opsiyonel: eski aliskanlik icin alias
+        app.get("/api/spotify/status", (req, res) => res.redirect(302, "/api/me"));
+
 
         const auth = Buffer.from(
             process.env.SPOTIFY_CLIENT_ID + ":" + process.env.SPOTIFY_CLIENT_SECRET

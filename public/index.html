@@ -447,18 +447,15 @@
                     spotifyStatus.style.color = "#fff";
 
                     spotifyLink.textContent = "Spotify bagli";
-                    spotifyLink.style.pointerEvents = "none";
                     spotifyLink.style.opacity = ".8";
                 } else {
                     spotifyStatus.textContent = "Spotify bagli degil";
                     spotifyLink.textContent = "Spotify bagla";
-                    spotifyLink.style.pointerEvents = "auto";
                     spotifyLink.style.opacity = "1";
                 }
             } catch (e) {
                 spotifyStatus.textContent = "Spotify bagli degil";
                 spotifyLink.textContent = "Spotify bagla";
-                spotifyLink.style.pointerEvents = "auto";
             }
         }
 
