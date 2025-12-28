@@ -57,12 +57,12 @@
 </head>
 <body>
     <h1>Spotimaker</h1>
-    <p><b>Ruh halini yaz, playlistini hazirlayalim.</b></p>
+    <p><b>Ruh halini yaz. Playlist’in hazır.</b></p>
 
 <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter. Ornek: gece surusu, sakin ama kendinden emin."></textarea>
-    <div class="hint">Ruh halini soyle, muzigi biz hallederiz.</div>
+    <div class="hint">Ruh halini söyle, müziği bize bırak.</div>
     <div style="margin-top: 12px;">
-        <button id="btn">Create playlist</button>
+        <button id="btn">Playlist oluştur</button>
         <div style="margin-top:10px;">
             <label for="count" style="font-size:14px; opacity:0.8;">
                 Sarki sayisi: <b><span id="countVal">20</span></b>
@@ -82,12 +82,12 @@
 
     <div id="loadingWrap" style="display:none; margin-top:12px;">
         <div style="font-weight:600; margin-bottom:6px;">
-            Playlist hazirlaniyor<span id="dots"></span>
+            Playlist hazırlanıyor<span id="dots"></span>
         </div>
         <div style="width:100%; max-width:520px; height:10px; border:1px solid #ddd; border-radius:999px; overflow:hidden;">
             <div id="loadingBar" style="height:100%; width:0%; border-radius:999px; background:#111;"></div>
         </div>
-        <div style="font-size:12px; opacity:0.65; margin-top:6px;">Genelde birkac saniye surer</div>
+        <div style="font-size:12px; opacity:0.65; margin-top:6px;">Birkaç dakika sürebilir</div>
     </div>
 
     <div id="out"></div>
@@ -103,25 +103,40 @@
         const count = document.getElementById("count");
         const countVal = document.getElementById("countVal");
         const dots = document.getElementById("dots");
-let dotsTimer = null;
+        let dotsTimer = null;
+        let slowTimer = null;
 
-function startDots() {
-  if (!dots) return;
-  let i = 0;
-  dots.textContent = "";
-  clearInterval(dotsTimer);
-  dotsTimer = setInterval(() => {
-    i = (i + 1) % 4;
-    dots.textContent = ".".repeat(i);
-  }, 350);
-}
+        function startSlowHint() {
+            slowTimer = setTimeout(() => {
+                const el = document.querySelector(
+                    "#loadingWrap div:nth-child(3)"
+                );
+                if (el) el.textContent = "Biraz uzun sürüyor ama değecek.";
+            }, 6000);
+        }
 
-function stopDots() {
-  if (!dots) return;
-  clearInterval(dotsTimer);
-  dotsTimer = null;
-  dots.textContent = "";
-}
+        function stopSlowHint() {
+            if (slowTimer) clearTimeout(slowTimer);
+            slowTimer = null;
+        }
+
+        function startDots() {
+            if (!dots) return;
+            let i = 0;
+            dots.textContent = "";
+            clearInterval(dotsTimer);
+            dotsTimer = setInterval(() => {
+                i = (i + 1) % 4;
+                dots.textContent = ".".repeat(i);
+            }, 350);
+        }
+
+        function stopDots() {
+            if (!dots) return;
+            clearInterval(dotsTimer);
+            dotsTimer = null;
+            dots.textContent = "";
+        }
 
 
         count.oninput = () => {
@@ -159,6 +174,8 @@ function stopDots() {
 
         function showLoadingBar() {
             startDots();
+            startSlowHint();
+            startDots();
 
             loadingWrap.style.display = "block";
             loadingBar.style.width = "0%";
@@ -174,6 +191,9 @@ function stopDots() {
         }
 
         function hideLoadingBar() {
+            stopDots();
+            stopSlowHint();
+
             stopDots();
 
             clearInterval(loadingTimer);
@@ -211,27 +231,27 @@ function stopDots() {
 
                 out.innerHTML = `
 
-                            <div class="card">
-                            <div><b>Bu liste sana gore.</b></div>
+                                <div class="card">
+                                <div><b>Bu liste sana göre hazırlandı.</b></div>
 
-                              <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
-                              <div style="opacity:.85">${escapeHtml(data.description)}</div>
-                              <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
-                              <div style="margin-top:10px;">
-                              <div style="margin-top:12px;">
-  <button id="saveSpotifyBtn">Spotify'a ekle</button>
-  <span id="saveSpotifyMsg" style="margin-left:10px; opacity:0.75;"></span>
+                                  <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
+                                  <div style="opacity:.85">${escapeHtml(data.description)}</div>
+                                  <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
+                                  <div style="margin-top:10px;">
+                                  <div style="margin-top:12px;">
+      <button id="saveSpotifyBtn">Spotify'a ekle</button>
+      <span id="saveSpotifyMsg" style="margin-left:10px; opacity:0.75;"></span>
 </div>
 
-                                <b>Tracklist</b>
-                                <ol>${tracks}</ol>
-                              </div>
-                              <details style="margin-top:10px;">
-                                <summary>Show JSON</summary>
-                                <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
-                              </details>
-                            </div>
-                          `;
+                                    <b>Tracklist</b>
+                                    <ol>${tracks}</ol>
+                                  </div>
+                                  <details style="margin-top:10px;">
+                                    <summary>Show JSON</summary>
+                                    <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                                  </details>
+                                </div>
+                              `;
                 const saveBtn = document.getElementById("saveSpotifyBtn");
                 const saveMsg = document.getElementById("saveSpotifyMsg");
 
