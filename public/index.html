@@ -1,32 +1,49 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Spotimaker</title>
-    <style>
 
+    <style>
         :root {
             --bg: #0b0b0f;
+            --card: #12121a;
             --muted: rgba(255,255,255,.72);
             --text: #fff;
             --line: rgba(255,255,255,.12);
+            --accent: #22c55e;
+            --accent2: #3b82f6;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.18), transparent 60%), radial-gradient(1000px 700px at 80% 10%, rgba(59,130,246,.14), transparent 60%), var(--bg);
             color: var(--text);
+            min-height: 100vh;
+        }
+
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 28px 18px 60px;
         }
 
         .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            padding: 14px;
+            gap: 14px;
+            padding: 14px 16px;
             border: 1px solid var(--line);
             border-radius: 18px;
-            background: rgba(18,18,26,.75);
+            background: rgba(18,18,26,.70);
             backdrop-filter: blur(10px);
         }
 
@@ -34,6 +51,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            min-width: 260px;
         }
 
         .logo {
@@ -45,16 +63,30 @@
             justify-content: center;
             border: 1px solid var(--line);
             background: linear-gradient(135deg, rgba(34,197,94,.18), rgba(59,130,246,.14));
+            flex: 0 0 auto;
         }
 
         .brand-name {
             font-weight: 900;
             letter-spacing: .2px;
             font-size: 18px;
+            margin: 0;
         }
 
         .brand-sub {
             font-size: 13px;
+            color: var(--muted);
+            margin: 2px 0 0;
+        }
+
+        .spotify-badge {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            border: 1px solid var(--line);
             color: var(--muted);
         }
 
@@ -62,6 +94,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .navlink {
@@ -72,7 +106,7 @@
         }
 
             .navlink:hover {
-                background: rgba(255,255,255,.05);
+                background: rgba(255,255,255,.06);
                 color: #fff;
             }
 
@@ -83,306 +117,534 @@
             padding: 10px 12px;
             border-radius: 12px;
             font-weight: 900;
+            border: 1px solid rgba(255,255,255,.2);
+        }
+
+            .navbtn:hover {
+                opacity: .93;
+            }
+
+        .main-card {
+            margin: 22px auto 0;
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: rgba(18,18,26,.80);
+            backdrop-filter: blur(14px);
         }
 
         .hero {
-            margin-top: 18px;
+            display: flex;
+            gap: 18px;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
             margin-bottom: 14px;
         }
 
         .h1 {
             margin: 0 0 6px 0;
-            font-size: 26px;
-            letter-spacing: -.3px;
+            font-size: 28px;
+            letter-spacing: -.4px;
         }
 
         .p {
             margin: 0;
             color: var(--muted);
-            line-height: 1.5;
+            line-height: 1.55;
+            max-width: 62ch;
+        }
+
+        .hint {
+            color: var(--muted);
+            margin-top: 10px;
+            font-size: 13px;
         }
 
         textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 14px;
+            font-size: 16px;
             border-radius: 16px;
             border: 1px solid var(--line);
             background: rgba(255,255,255,.04);
             color: #fff;
             outline: none;
+            resize: vertical;
         }
 
-        button {
-            border-radius: 14px;
-            border: 1px solid var(--line);
-            background: #fff;
+            textarea:focus {
+                border-color: rgba(59,130,246,.45);
+                box-shadow: 0 0 0 4px rgba(59,130,246,.10);
+            }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .primary-btn {
+            flex: 1 1 220px;
+            padding: 14px 18px;
+            font-size: 18px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #22c55e, #3b82f6);
             color: #0b0b0f;
+            border: none;
             font-weight: 900;
+            cursor: pointer;
         }
 
-            button:disabled {
+            .primary-btn:hover {
+                opacity: .95;
+            }
+
+            .primary-btn:disabled {
                 opacity: .6;
                 cursor: not-allowed;
             }
+
+        .ghost-btn {
+            flex: 0 0 auto;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+            .ghost-btn:hover {
+                background: rgba(255,255,255,.09);
+            }
+
+        .slider-wrap {
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
+        }
+
+        .slider-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+            .slider-top b {
+                font-size: 14px;
+            }
+
+        .slider-note {
+            font-size: 12px;
+            color: rgba(255,255,255,.55);
+            line-height: 1.35;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            max-width: 640px;
+        }
+
+        .loadingWrap {
+            display: none;
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
+        }
+
+        .loadingTitle {
+            font-weight: 900;
+            margin: 0 0 10px 0;
+        }
+
+        .barOuter {
+            width: 100%;
+            max-width: 680px;
+            height: 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255,255,255,.02);
+        }
+
+        .barInner {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #22c55e, #3b82f6);
+            transition: width .18s linear;
+        }
+
+        .loadingSub {
+            margin-top: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,.6);
+        }
+
+        .card {
+            margin-top: 16px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
+        }
+
+        .cardTitle {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: -.2px;
+        }
+
+        .cardDesc {
+            margin: 8px 0 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .tags {
+            margin-top: 10px;
+            color: rgba(255,255,255,.65);
+            font-size: 13px;
+        }
+
+        ol {
+            margin: 10px 0 0 18px;
+        }
+
+        li {
+            margin: 4px 0;
+            color: rgba(255,255,255,.92);
+        }
+
+        details {
+            margin-top: 12px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            background: rgba(255,255,255,.04);
+            border: 1px solid var(--line);
+            padding: 12px;
+            border-radius: 14px;
+            overflow: auto;
+            color: rgba(255,255,255,.9);
+        }
+
+        .error {
+            border-color: rgba(239,68,68,.35);
+            background: rgba(239,68,68,.06);
+        }
+
+        @media (max-width: 560px) {
+            .h1 {
+                font-size: 24px;
+            }
+
+            .topbar {
+                padding: 12px;
+            }
+
+            .main-card {
+                padding: 18px;
+            }
+
+            .primary-btn {
+                width: 100%;
+            }
+        }
     </style>
-
-
 </head>
+
 <body>
-    <header class="topbar">
-        <div class="brand">
-            <div class="logo" aria-hidden="true">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
-                    <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                </svg>
+    <div class="page">
+        <header class="topbar">
+            <div class="brand">
+                <div class="logo" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                        <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="brand-name">Spotimaker</div>
+                    <div class="brand-sub">Ruh haline gore playlist.</div>
+                    <div id="spotifyStatus" class="spotify-badge">Spotify bagli degil</div>
+                </div>
             </div>
-            <div>
-                <div class="brand-name">Spotimaker</div>
-                <div class="brand-sub">Ruh haline gore playlist.</div>
-                <div id="spotifyStatus" class="brand-sub" style="margin-top:4px;"></div>
+
+            <nav class="nav">
+                <a href="/premium.html" class="navlink">Premium</a>
+                <a id="spotifyLink" href="/login" class="navbtn">Spotify bagla</a>
+            </nav>
+        </header>
+
+        <main class="main-card">
+            <div class="hero">
+                <div>
+                    <h1 class="h1">Ruh halini yaz, playlistin hazir.</h1>
+                    <p class="p">Mood + ortam + his yeter. Istersen playlisti Spotify hesabina tek tikla eklersin.</p>
+                    <div class="hint">Ornek: "Gece surusu, sakin ama ritmik. Ornek sarki: Tugkan - Kusura Bakma"</div>
+                </div>
             </div>
-        </div>
 
-        <nav class="nav">
-            <a href="/premium.html" class="navlink">Premium</a>
-        </nav>
-    </header>
-    <div class="hero">
-        <h1 class="h1">Ruh halini yaz, playlistin hazir.</h1>
-        <p class="p">Mood + ortam + his yeter. Spotify hesabina kaydetmek istersen tek tik.</p>
-    </div>
+            <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
 
-<textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter. Ornek: gece surusu, sakin ama kendinden emin."></textarea>
-    <div class="hint">Ruh halini söyle, müziği bize bırak.</div>
-    <div style="margin-top: 12px;">
-        <button id="btn">Playlist oluştur</button>
-        <div style="margin-top:10px;">
-            <label for="count" style="font-size:14px; opacity:0.8;">
-                Sarki sayisi: <b><span id="countVal">20</span></b>
-            </label>
-            <input id="count" type="range" min="20" max="200" step="10" value="20" style="width:100%; max-width:520px; display:block; margin-top:6px;">
-            <div style="font-size:12px; opacity:0.6; margin-top:4px;">
-                Free: Günlük 50 şarkı Spotify'a kaydetme hakkı (yakında).
+            <div class="row">
+                <button id="btn" class="primary-btn">Playlist olustur</button>
+                <a id="spotifyLink2" href="/login" class="ghost-btn">Spotify bagla</a>
             </div>
-        </div>
 
-        <a id="spotifyLink" href="/login" style="margin-left:10px; text-decoration:none; padding:10px 14px; border:1px solid #ddd; border-radius:10px; display:inline-block;">
-            Spotify bagla
-        </a>
+            <div class="slider-wrap">
+                <div class="slider-top">
+                    <div style="display:flex; gap:8px; align-items:baseline;">
+                        <span style="color:var(--muted); font-size:13px;">Sarki sayisi:</span>
+                        <b><span id="countVal">20</span></b>
+                    </div>
+                    <div style="color:rgba(255,255,255,.55); font-size:12px;">20 - 200</div>
+                </div>
+                <input id="count" type="range" min="20" max="200" step="10" value="20" />
+                <div class="slider-note">Free: gunluk 50 sarki Spotify'a kaydetme hakki (yakinda). Daha fazlasi Premium.</div>
+            </div>
 
+            <div id="loadingWrap" class="loadingWrap">
+                <div class="loadingTitle" id="loadingTitle">Playlist hazirlaniyor...</div>
+                <div class="barOuter"><div id="loadingBar" class="barInner"></div></div>
+                <div class="loadingSub" id="loadingSub">Bu genelde birkac saniye surer.</div>
+            </div>
+
+            <div id="out"></div>
+        </main>
     </div>
-
-    <div id="loadingWrap" style="display:none; margin-top:12px;">
-        <div style="font-weight:600; margin-bottom:6px;">
-            Playlist hazırlanıyor<span id="dots"></span>
-        </div>
-        <div style="width:100%; max-width:520px; height:10px; border:1px solid #ddd; border-radius:999px; overflow:hidden;">
-            <div id="loadingBar" style="height:100%; width:0%; border-radius:999px; background:#111;"></div>
-        </div>
-        <div style="font-size:12px; opacity:0.65; margin-top:6px;">Birkaç dakika sürebilir</div>
-    </div>
-
-    <div id="out"></div>
 
     <script>
         const btn = document.getElementById("btn");
         const text = document.getElementById("text");
         const out = document.getElementById("out");
+
         const loadingWrap = document.getElementById("loadingWrap");
         const loadingBar = document.getElementById("loadingBar");
-        const spotifyStatus = document.getElementById("spotifyStatus");
-        const spotifyLink = document.getElementById("spotifyLink");
+        const loadingTitle = document.getElementById("loadingTitle");
+        const loadingSub = document.getElementById("loadingSub");
+
         const count = document.getElementById("count");
         const countVal = document.getElementById("countVal");
-        const dots = document.getElementById("dots");
-        let dotsTimer = null;
-        let slowTimer = null;
 
-        function startSlowHint() {
-            slowTimer = setTimeout(() => {
-                const el = document.querySelector(
-                    "#loadingWrap div:nth-child(3)"
-                );
-                if (el) el.textContent = "Biraz uzun sürüyor ama değecek.";
-            }, 6000);
+        const spotifyStatus = document.getElementById("spotifyStatus");
+        const spotifyLink = document.getElementById("spotifyLink");
+        const spotifyLink2 = document.getElementById("spotifyLink2");
+
+        count.addEventListener("input", () => {
+            countVal.textContent = String(count.value);
+        });
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+            }[c]));
         }
-
-        function stopSlowHint() {
-            if (slowTimer) clearTimeout(slowTimer);
-            slowTimer = null;
-        }
-
-        function startDots() {
-            if (!dots) return;
-            let i = 0;
-            dots.textContent = "";
-            clearInterval(dotsTimer);
-            dotsTimer = setInterval(() => {
-                i = (i + 1) % 4;
-                dots.textContent = ".".repeat(i);
-            }, 350);
-        }
-
-        function stopDots() {
-            if (!dots) return;
-            clearInterval(dotsTimer);
-            dotsTimer = null;
-            dots.textContent = "";
-        }
-
-
-        count.oninput = () => {
-            countVal.textContent = count.value;
-        };
-
-
-
-        async function checkSpotify() {
-            try {
-                const r = await fetch("/debug/spotify");
-                const j = await r.json();
-
-                if (j.ok) {
-                    spotifyStatus.textContent = `Spotify baglandi: ${j.me.display_name}`;
-                    spotifyLink.textContent = "Spotify bagli";
-                    spotifyLink.href = "#";
-                    spotifyLink.style.pointerEvents = "none";
-                    spotifyLink.style.opacity = "0.6";
-                } else {
-                    spotifyStatus.textContent = "Spotify bagli degil";
-                    spotifyLink.textContent = "Spotify bagla";
-                    spotifyLink.href = "/login";
-                    spotifyLink.style.pointerEvents = "auto";
-                    spotifyLink.style.opacity = "1";
-                }
-            } catch (e) {
-                spotifyStatus.textContent = "";
-            }
-        }
-
-        checkSpotify();
 
         let loadingTimer = null;
-
-        function showLoadingBar() {
-            startDots();
-            startSlowHint();
-            startDots();
-
+        function startLoading() {
             loadingWrap.style.display = "block";
             loadingBar.style.width = "0%";
-
             let p = 0;
-            clearInterval(loadingTimer);
+            const steps = [
+                "Vibe'i yakaliyorum...",
+                "Sarkilari ayikliyorum...",
+                "Akisi kuruyorum...",
+                "Son dokunuslar..."
+            ];
+            let stepIdx = 0;
+            loadingTitle.textContent = "Playlist hazirlaniyor...";
+            loadingSub.textContent = steps[0];
 
             loadingTimer = setInterval(() => {
-                const step = p < 70 ? 3 : p < 90 ? 1 : 0.2;
-                p = Math.min(p + step, 95);
-                loadingBar.style.width = `${p}%`;
-            }, 120);
+                // ilk hizli, sonra yavaslayarak ilerlesin
+                const inc = p < 60 ? 6 : (p < 85 ? 3 : 1);
+                p = Math.min(95, p + inc);
+                loadingBar.style.width = p + "%";
+
+                if (p % 18 === 0 && stepIdx < steps.length - 1) {
+                    stepIdx++;
+                    loadingSub.textContent = steps[stepIdx];
+                }
+            }, 260);
         }
 
-        function hideLoadingBar() {
-            stopDots();
-            stopSlowHint();
-
-            stopDots();
-
-            clearInterval(loadingTimer);
+        function finishLoading() {
+            if (loadingTimer) clearInterval(loadingTimer);
+            loadingTimer = null;
             loadingBar.style.width = "100%";
-
             setTimeout(() => {
                 loadingWrap.style.display = "none";
                 loadingBar.style.width = "0%";
-            }, 250);
+            }, 350);
         }
 
-
-        function escapeHtml(s) {
-            return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        async function refreshSpotifyStatus() {
+            try {
+                const r = await fetch("/api/me", { method: "GET" });
+                if (!r.ok) throw new Error("not authed");
+                const data = await r.json();
+                if (data && data.ok && data.me) {
+                    const name = data.me.display_name || "Baglandi";
+                    spotifyStatus.textContent = "Spotify baglandi: " + name;
+                    spotifyStatus.style.background = "rgba(34,197,94,.20)";
+                    spotifyStatus.style.color = "rgba(255,255,255,.92)";
+                    spotifyLink.textContent = "Spotify bagli";
+                    spotifyLink.style.pointerEvents = "none";
+                    spotifyLink2.textContent = "Spotify bagli";
+                    spotifyLink2.style.pointerEvents = "none";
+                    spotifyLink2.style.opacity = ".7";
+                }
+            } catch (e) {
+                // bagli degil
+            }
         }
+
+        async function addToSpotify(lastResult) {
+            // Bu endpoint sende daha once eklediysen vardir:
+            // POST /api/spotify/save { title, description, tracks:[{artist,song}] }
+            const payload = {
+                title: lastResult.title,
+                description: lastResult.description,
+                tracks: lastResult.tracks
+            };
+
+            const resp = await fetch("/api/spotify/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.error || "Spotify kaydetme basarisiz");
+            return data;
+        }
+
+        let lastPlaylist = null;
 
         btn.onclick = async () => {
             out.innerHTML = "";
-            showLoadingBar();
-
+            out.className = "";
             btn.disabled = true;
+            startLoading();
 
             try {
+                const payload = {
+                    text: text.value,
+                    count: Number(count.value) // server destekliyorsa kullanir
+                };
+
                 const resp = await fetch("/api/generate", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: text.value, count: Number(count.value) })
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify(payload)
                 });
 
-                const data = await resp.json();
+                const data = await resp.json().catch(() => ({}));
                 if (!resp.ok) throw new Error(data.error || "Request failed");
 
-                const tracks = data.tracks.map(t => `<li>${escapeHtml(t.artist)} - ${escapeHtml(t.song)}</li>`).join("");
+                lastPlaylist = data;
 
+                const tracksHtml = (data.tracks || []).map(t =>
+                    `<li>${escapeHtml(t.artist)} - ${escapeHtml(t.song)}</li>`
+                ).join("");
+
+                const tags = Array.isArray(data.vibe_tags) ? data.vibe_tags.join(", ") : "";
 
                 out.innerHTML = `
+              <div class="card">
+                <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin icin yapildi.</b></div>
+                <h2 class="cardTitle">${escapeHtml(data.title || "Playlist")}</h2>
+                <p class="cardDesc">${escapeHtml(data.description || "")}</p>
+                <div class="tags">Tags: ${escapeHtml(tags)}</div>
 
-                                        <div class="card">
-                                        <div><b>Bu liste sana göre hazırlandı.</b></div>
+                <div style="margin-top:12px;">
+                  <b>Tracklist</b>
+                  <ol>${tracksHtml}</ol>
+                </div>
 
-                                          <h2 style="margin: 10px 0 6px 0;">${escapeHtml(data.title)}</h2>
-                                          <div style="opacity:.85">${escapeHtml(data.description)}</div>
-                                          <div style="margin-top:10px; opacity:.75">Tags: ${escapeHtml(data.vibe_tags.join(", "))}</div>
-                                          <div style="margin-top:10px;">
-                                          <div style="margin-top:12px;">
-              <button id="saveSpotifyBtn">Spotify'a ekle</button>
-              <span id="saveSpotifyMsg" style="margin-left:10px; opacity:0.75;"></span>
-</div>
+                <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <button id="saveBtn" class="ghost-btn">Spotify'ya ekle</button>
+                  <button id="copyBtn" class="ghost-btn">JSON kopyala</button>
+                </div>
 
-                                            <b>Tracklist</b>
-                                            <ol>${tracks}</ol>
-                                          </div>
-                                          <details style="margin-top:10px;">
-                                            <summary>Show JSON</summary>
-                                            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
-                                          </details>
-                                        </div>
-                                      `;
-                const saveBtn = document.getElementById("saveSpotifyBtn");
-                const saveMsg = document.getElementById("saveSpotifyMsg");
+                <details>
+                  <summary style="margin-top:12px; cursor:pointer;">JSON gor</summary>
+                  <pre id="jsonBox">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                </details>
+              </div>
+            `;
+
+                // Save button (Spotify bagli degilse /login'e gonder)
+                const saveBtn = document.getElementById("saveBtn");
+                const copyBtn = document.getElementById("copyBtn");
+                const jsonBox = document.getElementById("jsonBox");
 
                 saveBtn.onclick = async () => {
                     saveBtn.disabled = true;
-                    saveMsg.textContent = "Spotify'a ekleniyor...";
-
+                    saveBtn.textContent = "Kaydediliyor...";
                     try {
-                        const r = await fetch("/spotify/save", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                title: data.title,
-                                description: data.description,
-                                tracks: data.tracks
-                            })
-                        });
+                        // once bagli mi kontrol
+                        const me = await fetch("/api/me").then(r => r.ok ? r.json() : null);
+                        if (!me || !me.ok) {
+                            window.location.href = "/login";
+                            return;
+                        }
 
-                        const j = await r.json();
-                        if (!r.ok) throw new Error(j.error || "Save failed");
-
-                        saveMsg.innerHTML = j.playlist?.url
-                            ? `Eklendi: <a href="${j.playlist.url}" target="_blank">Spotify'da ac</a> (${j.added}/${j.requested})`
-                            : `Eklendi (${j.added}/${j.requested})`;
+                        const result = await addToSpotify(lastPlaylist);
+                        saveBtn.textContent = "Eklendi!";
+                        saveBtn.style.background = "rgba(34,197,94,.20)";
                     } catch (e) {
-                        saveMsg.textContent = String(e);
-                    } finally {
                         saveBtn.disabled = false;
+                        saveBtn.textContent = "Spotify'ya ekle";
+                        alert(String(e));
+                    }
+                };
+
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(JSON.stringify(lastPlaylist, null, 2));
+                        copyBtn.textContent = "Kopyalandi!";
+                        setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
+                    } catch (e) {
+                        // fallback
+                        const r = document.createRange();
+                        r.selectNodeContents(jsonBox);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(r);
+                        document.execCommand("copy");
+                        sel.removeAllRanges();
+                        copyBtn.textContent = "Kopyalandi!";
+                        setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
                     }
                 };
 
             } catch (e) {
-                out.innerHTML = `<pre>${escapeHtml(String(e))}</pre>`;
+                out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
             } finally {
-                hideLoadingBar();
-
+                finishLoading();
                 btn.disabled = false;
             }
         };
+
+        // sayfa acilinca spotify durumu
+        refreshSpotifyStatus();
     </script>
 </body>
 </html>
