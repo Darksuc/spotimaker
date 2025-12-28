@@ -432,6 +432,39 @@
 
     <script>
         const btn = document.getElementById("btn");
+        const spotifyStatus = document.getElementById("spotifyStatus");
+        const spotifyLink = document.getElementById("spotifyLink");
+
+        async function refreshSpotifyStatus() {
+            try {
+                const r = await fetch("/api/me", { credentials: "include" });
+                const j = await r.json();
+
+                if (j && j.ok && j.me) {
+                    const name = j.me.display_name || "Baglandi";
+                    spotifyStatus.textContent = "Spotify bagli: " + name;
+                    spotifyStatus.style.background = "rgba(34,197,94,.20)";
+                    spotifyStatus.style.color = "#fff";
+
+                    spotifyLink.textContent = "Spotify bagli";
+                    spotifyLink.style.pointerEvents = "none";
+                    spotifyLink.style.opacity = ".8";
+                } else {
+                    spotifyStatus.textContent = "Spotify bagli degil";
+                    spotifyLink.textContent = "Spotify bagla";
+                    spotifyLink.style.pointerEvents = "auto";
+                    spotifyLink.style.opacity = "1";
+                }
+            } catch (e) {
+                spotifyStatus.textContent = "Spotify bagli degil";
+                spotifyLink.textContent = "Spotify bagla";
+                spotifyLink.style.pointerEvents = "auto";
+            }
+        }
+
+        // sayfa acilinca calissin
+        refreshSpotifyStatus();
+
         const text = document.getElementById("text");
         const out = document.getElementById("out");
 
