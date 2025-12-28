@@ -4,6 +4,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
+import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats } from "./db.mjs";
+
 
 const app = express();
 app.use(express.json());
@@ -82,6 +84,14 @@ const playlistSchema = {
 // --- ROUTES ---
 app.get("/debug/spotify", async (req, res) => {
     const token = getCookie(req, "spotify_access_token");
+    const meRes = await fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${data.access_token}` }
+    });
+    const me = await meRes.json();
+    if (me && me.id) {
+        upsertUser({ spotify_id: me.id, display_name: me.display_name });
+    }
+
     if (!token) return res.json({ ok: false, reason: "no spotify_access_token cookie" });
 
     try {
@@ -218,6 +228,78 @@ app.get("/spotify/top", async (req, res) => {
 });
 
 app.get("/api/me", async (req, res) => {
+    function requireAdmin(req, res) {
+        const token = String(req.query.token || req.headers["x-admin-token"] || "");
+        if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+            res.status(401).send("Unauthorized");
+            return false;
+        }
+        return true;
+    }
+
+    app.get("/admin", (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const stats = getStats();
+        const users = getUsers(200);
+
+        const row = (u) => `
+    <tr>
+      <td>${escapeHtml(u.display_name || "")}</td>
+      <td>${escapeHtml(u.spotify_id)}</td>
+      <td>${new Date(u.first_seen).toLocaleString()}</td>
+      <td>${new Date(u.last_seen).toLocaleString()}</td>
+      <td style="text-align:right">${u.playlists_created}</td>
+      <td style="text-align:right">${u.playlists_saved}</td>
+    </tr>
+  `;
+
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.send(`
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Spotimaker Admin</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial; padding:24px; max-width:1100px; margin:0 auto;}
+    .cards{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+    .card{border:1px solid #ddd; border-radius:12px; padding:12px 14px; min-width:180px;}
+    table{width:100%; border-collapse:collapse;}
+    th,td{border-bottom:1px solid #eee; padding:10px; font-size:14px;}
+    th{text-align:left; background:#fafafa; position:sticky; top:0;}
+  </style>
+</head>
+<body>
+  <h1>Spotimaker Admin</h1>
+  <div class="cards">
+    <div class="card"><b>Total users</b><div>${stats.totalUsers}</div></div>
+    <div class="card"><b>Active 24h</b><div>${stats.active24h}</div></div>
+    <div class="card"><b>Total events</b><div>${stats.totalEvents}</div></div>
+  </div>
+
+  <h2>Users (latest first)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Display name</th>
+        <th>Spotify ID</th>
+        <th>First seen</th>
+        <th>Last seen</th>
+        <th>Created</th>
+        <th>Saved</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${users.map(row).join("")}
+    </tbody>
+  </table>
+</body>
+</html>
+  `);
+    });
+
     try {
         const token = getCookie(req, "spotify_access_token");
         if (!token) return res.status(200).json({ ok: false });
