@@ -45,6 +45,8 @@
             border-radius: 18px;
             background: rgba(18,18,26,.70);
             backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 50;
         }
 
         .brand {
@@ -387,7 +389,7 @@
 
             <nav class="nav">
                 <a href="/premium.html" class="navlink">Premium</a>
-                <a id="spotifyLink" href="/login" class="navbtn">Spotify bagla</a>
+                <a id="spotifyLink" href="/login" class="navbtn" target="_self">Spotify bagla</a>
             </nav>
         </header>
 
@@ -404,7 +406,6 @@
 
             <div class="row">
                 <button id="btn" class="primary-btn">Playlist olustur</button>
-                <a id="spotifyLink2" href="/login" class="ghost-btn">Spotify bagla</a>
             </div>
 
             <div class="slider-wrap">
@@ -444,7 +445,6 @@
 
         const spotifyStatus = document.getElementById("spotifyStatus");
         const spotifyLink = document.getElementById("spotifyLink");
-        const spotifyLink2 = document.getElementById("spotifyLink2");
 
         count.addEventListener("input", () => {
             countVal.textContent = String(count.value);
@@ -506,9 +506,6 @@
                     spotifyStatus.style.color = "rgba(255,255,255,.92)";
                     spotifyLink.textContent = "Spotify bagli";
                     spotifyLink.style.pointerEvents = "none";
-                    spotifyLink2.textContent = "Spotify bagli";
-                    spotifyLink2.style.pointerEvents = "none";
-                    spotifyLink2.style.opacity = ".7";
                 }
             } catch (e) {
                 // bagli degil
