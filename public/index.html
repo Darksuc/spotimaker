@@ -382,7 +382,7 @@
                 </div>
                 <div>
                     <div class="brand-name">Spotimaker</div>
-                    <div class="brand-sub">Ruh haline gore playlist.</div>
+                    <div class="brand-sub">Ruh haline göre playlist.</div>
                     <div id="spotifyStatus" class="spotify-badge">Spotify bagli degil</div>
                 </div>
             </div>
@@ -396,16 +396,16 @@
         <main class="main-card">
             <div class="hero">
                 <div>
-                    <h1 class="h1">Ruh halini yaz, playlistin hazir.</h1>
-                    <p class="p">Mood + ortam + his yeter. Istersen playlisti Spotify hesabina tek tikla eklersin.</p>
-                    <div class="hint">Ornek: "Gece surusu, sakin ama ritmik. Ornek sarki: Tugkan - Kusura Bakma"</div>
+                    <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
+                    <p class="p">Mood + ortam + his yeter. Istersen playlisti Spotify hesabına tek tıkla eklersin.</p>
+                    <div class="hint">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
                 </div>
             </div>
 
             <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
 
             <div class="row">
-                <button id="btn" class="primary-btn">Playlist olustur</button>
+                <button id="btn" class="primary-btn">Playlist oluştur</button>
             </div>
 
             <div class="slider-wrap">
@@ -417,13 +417,13 @@
                     <div style="color:rgba(255,255,255,.55); font-size:12px;">20 - 200</div>
                 </div>
                 <input id="count" type="range" min="20" max="200" step="10" value="20" />
-                <div class="slider-note">Free: gunluk 50 sarki Spotify'a kaydetme hakki (yakinda). Daha fazlasi Premium.</div>
+                <div class="slider-note">Free: günlük 50 şarkı Spotify'a kaydetme hakkı (yakında). Daha fazlası Premium.</div>
             </div>
 
             <div id="loadingWrap" class="loadingWrap">
-                <div class="loadingTitle" id="loadingTitle">Playlist hazirlaniyor...</div>
+                <div class="loadingTitle" id="loadingTitle">Playlist hazırlanıyor...</div>
                 <div class="barOuter"><div id="loadingBar" class="barInner"></div></div>
-                <div class="loadingSub" id="loadingSub">Bu genelde birkac saniye surer.</div>
+                <div class="loadingSub" id="loadingSub">Bu genelde birkaç saniye sürer.</div>
             </div>
 
             <div id="out"></div>
@@ -441,21 +441,21 @@
                 const j = await r.json();
 
                 if (j && j.ok && j.me) {
-                    const name = j.me.display_name || "Baglandi";
-                    spotifyStatus.textContent = "Spotify bagli: " + name;
+                    const name = j.me.display_name || "Bağlandı";
+                    spotifyStatus.textContent = "Spotify bağlı: " + name;
                     spotifyStatus.style.background = "rgba(34,197,94,.20)";
                     spotifyStatus.style.color = "#fff";
 
-                    spotifyLink.textContent = "Spotify bagli";
+                    spotifyLink.textContent = "Spotify bağlı";
                     spotifyLink.style.opacity = ".8";
                 } else {
-                    spotifyStatus.textContent = "Spotify bagli degil";
-                    spotifyLink.textContent = "Spotify bagla";
+                    spotifyStatus.textContent = "Spotify bağli değil";
+                    spotifyLink.textContent = "Spotify bağla";
                     spotifyLink.style.opacity = "1";
                 }
             } catch (e) {
-                spotifyStatus.textContent = "Spotify bagli degil";
-                spotifyLink.textContent = "Spotify bagla";
+                spotifyStatus.textContent = "Spotify bağli değil";
+                spotifyLink.textContent = "Spotify bağla";
             }
         }
 
@@ -496,7 +496,7 @@
                 "Son dokunuslar..."
             ];
             let stepIdx = 0;
-            loadingTitle.textContent = "Playlist hazirlaniyor...";
+            loadingTitle.textContent = "Playlist hazırlanıyor...";
             loadingSub.textContent = steps[0];
 
             loadingTimer = setInterval(() => {
@@ -530,20 +530,20 @@
                 if (!spotifyStatus || !spotifyLink) return;
 
                 if (j && j.ok && j.me) {
-                    spotifyStatus.textContent = "Spotify bagli: " + (j.me.display_name || "OK");
+                    spotifyStatus.textContent = "Spotify bağlı: " + (j.me.display_name || "OK");
                     spotifyStatus.style.background = "rgba(34,197,94,.20)";
                     spotifyStatus.style.color = "#fff";
 
-                    spotifyLink.textContent = "Spotify bagli (degistir)";
+                    spotifyLink.textContent = "Spotify bağlı (Hesap değiştir)";
                     spotifyLink.href = "/login";
                     spotifyLink.style.pointerEvents = "auto";
                     spotifyLink.style.opacity = "1";
                 } else {
-                    spotifyStatus.textContent = "Spotify bagli degil";
+                    spotifyStatus.textContent = "Spotify bağlı değil";
                     spotifyStatus.style.background = "rgba(255,255,255,.08)";
                     spotifyStatus.style.color = "rgba(255,255,255,.72)";
 
-                    spotifyLink.textContent = "Spotify bagla";
+                    spotifyLink.textContent = "Spotify bağla";
                     spotifyLink.href = "/login";
                     spotifyLink.style.pointerEvents = "auto";
                     spotifyLink.style.opacity = "1";
@@ -569,7 +569,7 @@
             });
 
             const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(data.error || "Spotify kaydetme basarisiz");
+            if (!resp.ok) throw new Error(data.error || "Spotify kaydetme başarısız");
             return data;
         }
 
@@ -606,7 +606,7 @@
 
                 out.innerHTML = `
               <div class="card">
-                <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin icin yapildi.</b></div>
+                <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin için yapıldı.</b></div>
                 <h2 class="cardTitle">${escapeHtml(data.title || "Playlist")}</h2>
                 <p class="cardDesc">${escapeHtml(data.description || "")}</p>
                 <div class="tags">Tags: ${escapeHtml(tags)}</div>
@@ -657,7 +657,7 @@
                 copyBtn.onclick = async () => {
                     try {
                         await navigator.clipboard.writeText(JSON.stringify(lastPlaylist, null, 2));
-                        copyBtn.textContent = "Kopyalandi!";
+                        copyBtn.textContent = "Kopyalandı!";
                         setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
                     } catch (e) {
                         // fallback
@@ -668,7 +668,7 @@
                         sel.addRange(r);
                         document.execCommand("copy");
                         sel.removeAllRanges();
-                        copyBtn.textContent = "Kopyalandi!";
+                        copyBtn.textContent = "Kopyalandı!";
                         setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
                     }
                 };
@@ -694,23 +694,23 @@
                 if (!statusEl || !linkEl) return;
 
                 if (j && j.ok && j.me) {
-                    statusEl.textContent = "Spotify bagli: " + (j.me.display_name || "OK");
+                    statusEl.textContent = "Spotify bağli: " + (j.me.display_name || "OK");
                     statusEl.style.background = "rgba(34,197,94,.20)";
                     statusEl.style.color = "#fff";
 
                     // bagliyken de tiklanabilir kalsin istersen:
                     // linkEl.textContent = "Spotify bagli";
                     // linkEl.href = "/login"; // hesap degistirmek icin yine login'e gidebilir
-                    linkEl.textContent = "Spotify bagli (degistir)";
+                    linkEl.textContent = "Spotify bağli (değiştir)";
                     linkEl.href = "/login";
                     linkEl.style.pointerEvents = "auto";
                     linkEl.style.opacity = "1";
                 } else {
-                    statusEl.textContent = "Spotify bagli degil";
+                    statusEl.textContent = "Spotify bağlı değil";
                     statusEl.style.background = "rgba(255,255,255,.08)";
                     statusEl.style.color = "rgba(255,255,255,.72)";
 
-                    linkEl.textContent = "Spotify bagla";
+                    linkEl.textContent = "Spotify bağla";
                     linkEl.href = "/login";
                     linkEl.style.pointerEvents = "auto";
                     linkEl.style.opacity = "1";
@@ -732,20 +732,20 @@
                 if (!statusEl || !linkEl) return;
 
                 if (j && j.ok && j.me) {
-                    statusEl.textContent = "Spotify bagli: " + (j.me.display_name || "OK");
+                    statusEl.textContent = "Spotify bağli: " + (j.me.display_name || "OK");
                     statusEl.style.background = "rgba(34,197,94,.20)";
                     statusEl.style.color = "#fff";
 
-                    linkEl.textContent = "Spotify bagli (degistir)";
+                    linkEl.textContent = "Spotify bağlı (değiştir)";
                     linkEl.href = "/login";
                     linkEl.style.pointerEvents = "auto";
                     linkEl.style.opacity = "1";
                 } else {
-                    statusEl.textContent = "Spotify bagli degil";
+                    statusEl.textContent = "Spotify bağlı değil";
                     statusEl.style.background = "rgba(255,255,255,.08)";
                     statusEl.style.color = "rgba(255,255,255,.72)";
 
-                    linkEl.textContent = "Spotify bagla";
+                    linkEl.textContent = "Spotify bağla";
                     linkEl.href = "/login";
                     linkEl.style.pointerEvents = "auto";
                     linkEl.style.opacity = "1";
