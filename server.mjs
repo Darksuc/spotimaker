@@ -414,7 +414,7 @@ ${spotifyProfileText}
         return res.status(500).json({ error: "Failed to generate playlist" });
     }
 });
-app.post("/spotify/save", async (req, res) => {
+async function saveSpotifyPlaylist(req, res) {
     try {
         const token = getCookie(req, "spotify_access_token");
         if (!token) return res.status(401).json({ error: "Spotify not connected" });
@@ -519,7 +519,10 @@ app.post("/spotify/save", async (req, res) => {
         console.error(e);
         return res.status(500).json({ error: "Spotify save failed" });
     }
-});
+}
+app.post("/spotify/save", saveSpotifyPlaylist);
+app.post("/api/spotify/save", saveSpotifyPlaylist);
+
 function requireAdmin(req, res) {
     const token = String(req.query.token || req.headers["x-admin-token"] || "");
     if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
