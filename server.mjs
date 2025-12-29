@@ -93,6 +93,7 @@ app.get("/api/debug/users", (req, res) => {
 });
 
 app.get("/debug/spotify", async (req, res) => {
+    const token = getCookie(req, "spotify_access_token");
 
     if (!token) return res.json({ ok: false, reason: "no spotify_access_token cookie" });
 
@@ -406,6 +407,21 @@ ${spotifyProfileText}
 
         const jsonText = response.output_text;
         const data = JSON.parse(jsonText);
+        // ---- admin stats: playlist_created (only if Spotify is connected) ----
+        try {
+            if (spotifyToken) {
+                const meRes = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${spotifyToken}` }
+                });
+                const me = await meRes.json();
+                if (meRes.ok && me?.id) {
+                    markPlaylistCreated(me.id, `count=${requestedCount}`);
+                }
+            }
+        } catch (e) {
+            console.error("markPlaylistCreated failed:", e);
+        }
+
 
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         return res.json(data);
@@ -490,18 +506,32 @@ async function saveSpotifyPlaylist(req, res) {
         for (let i = 0; i < uris.length; i += 100) {
             const chunk = uris.slice(i, i + 100);
             const addRes = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
+
                 body: JSON.stringify({ uris: chunk })
             });
 
             const addJson = await addRes.json();
             if (!addRes.ok) {
                 return res.status(500).json({ error: "Failed adding tracks", details: addJson, created, skipped });
+        }
+        // ---- admin stats: playlist_saved ----
+        try {
+            if (me?.id) {
+                markPlaylistSaved(
+                    me.id,
+                    `playlist=${playlistId};added=${uris.length};requested=${tracks.length}`
+                );
             }
+        } catch (e) {
+            console.error("markPlaylistSaved failed:", e);
+        }
+
         }
 
         return res.json({
@@ -538,15 +568,6 @@ function escapeHtml(s) {
     }[c]));
 }
 
-app.get("/api/debug/users", (req, res) => {
-    try {
-        if (!requireAdmin(req, res)) return;
-        return res.json({ stats: getStats(), users: getUsers(20) });
-    } catch (e) {
-        console.error("DEBUG USERS ERROR:", e);
-        return res.status(500).json({ error: "debug users crashed" });
-    }
-});
 
 app.get("/admin", (req, res) => {
     try {

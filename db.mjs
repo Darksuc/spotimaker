@@ -8,10 +8,18 @@ const EVENTS_PATH = path.join(DATA_DIR, "events.json");
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function readJson(p, fallback) {
-    try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return fallback; }
+    try {
+        return JSON.parse(fs.readFileSync(p, "utf-8"));
+    } catch (e) {
+        console.error("readJson failed:", p, e?.message || e);
+        return fallback;
+    }
 }
+
 function writeJson(p, obj) {
-    fs.writeFileSync(p, JSON.stringify(obj, null, 2), "utf-8");
+    const tmp = p + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf-8");
+    fs.renameSync(tmp, p);
 }
 
 export function upsertUser({ spotify_id, display_name }) {
@@ -25,7 +33,8 @@ export function upsertUser({ spotify_id, display_name }) {
         first_seen: prev?.first_seen || ts,
         last_seen: ts,
         playlists_created: prev?.playlists_created || 0,
-        playlists_saved: prev?.playlists_saved || 0
+        playlists_saved: prev?.playlists_saved || 0,
+        logins: (prev?.logins || 0) + 1
     };
 
     writeJson(USERS_PATH, users);
