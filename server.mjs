@@ -90,14 +90,6 @@ app.get("/api/debug/users", (req, res) => {
 });
 
 app.get("/debug/spotify", async (req, res) => {
-    const token = getCookie(req, "spotify_access_token");
-    const meRes = await fetch("https://api.spotify.com/v1/me", {
-        headers: { Authorization: `Bearer ${data.access_token}` }
-    });
-    const me = await meRes.json();
-    if (me && me.id) {
-        upsertUser({ spotify_id: me.id, display_name: me.display_name });
-    }
 
     if (!token) return res.json({ ok: false, reason: "no spotify_access_token cookie" });
 
