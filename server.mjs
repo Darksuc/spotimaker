@@ -188,6 +188,12 @@ app.get("/callback", async (req, res) => {
             const me = await meRes.json();
             if (me?.id) {
                 upsertUser({ spotify_id: me.id, display_name: me.display_name });
+                console.log("LOGIN_EVENT", {
+                    spotify_id: me.id,
+                    display_name: me.display_name || null,
+                    time: new Date().toISOString()
+                });
+
             } else {
                 console.error("Spotify /me missing id:", me);
             }
@@ -407,6 +413,12 @@ ${spotifyProfileText}
 
         const jsonText = response.output_text;
         const data = JSON.parse(jsonText);
+        console.log("GENERATE_EVENT", {
+            spotify_connected: Boolean(spotifyToken),
+            requestedCount,
+            time: new Date().toISOString()
+        });
+
         // ---- admin stats: playlist_created (only if Spotify is connected) ----
         try {
             if (spotifyToken) {
@@ -533,6 +545,14 @@ async function saveSpotifyPlaylist(req, res) {
         }
 
         }
+        console.log("SAVE_EVENT", {
+            spotify_id: me?.id,
+            playlistId,
+            added: uris.length,
+            requested: tracks.length,
+            skipped: skipped.length,
+            time: new Date().toISOString()
+        });
 
         return res.json({
             ok: true,
