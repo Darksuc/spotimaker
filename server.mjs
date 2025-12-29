@@ -83,10 +83,13 @@ const playlistSchema = {
 
 // --- ROUTES ---
 app.get("/api/debug/users", (req, res) => {
-    if (!process.env.ADMIN_TOKEN || String(req.query.token || "") !== process.env.ADMIN_TOKEN) {
-        return res.status(401).json({ error: "Unauthorized" });
+    try {
+        if (!requireAdmin(req, res)) return;
+        return res.json({ stats: getStats(), users: getUsers(20) });
+    } catch (e) {
+        console.error("DEBUG USERS ERROR:", e);
+        return res.status(500).json({ error: "debug users crashed" });
     }
-    return res.json({ stats: getStats(), users: getUsers(20) });
 });
 
 app.get("/debug/spotify", async (req, res) => {
@@ -250,25 +253,25 @@ app.get("/api/me", async (req, res) => {
     }
 
     app.get("/admin", (req, res) => {
-        if (!requireAdmin(req, res)) return;
+        try {
+            if (!requireAdmin(req, res)) return;
 
-        const stats = getStats();
-        const users = getUsers(200);
+            const stats = getStats();
+            const users = getUsers(200);
 
-        const row = (u) => `
-    <tr>
-      <td>${escapeHtml(u.display_name || "")}</td>
-      <td>${escapeHtml(u.spotify_id)}</td>
-      <td>${new Date(u.first_seen).toLocaleString()}</td>
-      <td>${new Date(u.last_seen).toLocaleString()}</td>
-      <td style="text-align:right">${u.playlists_created}</td>
-      <td style="text-align:right">${u.playlists_saved}</td>
-    </tr>
-  `;
+            const row = (u) => `
+      <tr>
+        <td>${escapeHtml(u.display_name || "")}</td>
+        <td>${escapeHtml(u.spotify_id || "")}</td>
+        <td>${u.first_seen ? new Date(u.first_seen).toLocaleString() : ""}</td>
+        <td>${u.last_seen ? new Date(u.last_seen).toLocaleString() : ""}</td>
+        <td style="text-align:right">${Number(u.playlists_created || 0)}</td>
+        <td style="text-align:right">${Number(u.playlists_saved || 0)}</td>
+      </tr>
+    `;
 
-        res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.send(`
-<!doctype html>
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            return res.send(`<!doctype html>
 <html>
 <head>
   <meta charset="utf-8"/>
@@ -304,13 +307,17 @@ app.get("/api/me", async (req, res) => {
       </tr>
     </thead>
     <tbody>
-      ${users.map(row).join("")}
+      ${(users || []).map(row).join("")}
     </tbody>
   </table>
 </body>
-</html>
-  `);
+</html>`);
+        } catch (e) {
+            console.error("ADMIN ERROR:", e);
+            return res.status(500).send("Admin crashed. Check logs.");
+        }
     });
+
 
     try {
         const token = getCookie(req, "spotify_access_token");
