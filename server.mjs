@@ -82,6 +82,13 @@ const playlistSchema = {
 };
 
 // --- ROUTES ---
+app.get("/api/debug/users", (req, res) => {
+    if (!process.env.ADMIN_TOKEN || String(req.query.token || "") !== process.env.ADMIN_TOKEN) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+    return res.json({ stats: getStats(), users: getUsers(20) });
+});
+
 app.get("/debug/spotify", async (req, res) => {
     const token = getCookie(req, "spotify_access_token");
     const meRes = await fetch("https://api.spotify.com/v1/me", {
@@ -177,6 +184,19 @@ app.get("/callback", async (req, res) => {
         if (!tokenRes.ok) {
             console.error("Spotify token error:", data);
             return res.status(500).send("Token exchange failed");
+        }
+        try {
+            const meRes = await fetch("https://api.spotify.com/v1/me", {
+                headers: { Authorization: `Bearer ${data.access_token}` }
+            });
+            const me = await meRes.json();
+            if (me?.id) {
+                upsertUser({ spotify_id: me.id, display_name: me.display_name });
+            } else {
+                console.error("Spotify /me missing id:", me);
+            }
+        } catch (e) {
+            console.error("upsertUser failed:", e);
         }
 
         setCookie(res, "spotify_access_token", data.access_token, (data.expires_in || 3600) * 1000);
