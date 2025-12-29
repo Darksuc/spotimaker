@@ -485,31 +485,72 @@
         }
 
         let loadingTimer = null;
+        let dotsTimer = null;
+
         function startLoading() {
             loadingWrap.style.display = "block";
             loadingBar.style.width = "0%";
-            let p = 0;
+
+            // --- Dots animation ---
+            const baseTitle = "Playlist hazırlanıyor";
+            let dots = 0;
+            loadingTitle.textContent = baseTitle;
+
+            if (dotsTimer) clearInterval(dotsTimer);
+            dotsTimer = setInterval(() => {
+                dots = (dots + 1) % 4;
+                loadingTitle.textContent = baseTitle + ".".repeat(dots);
+            }, 350);
+
             const steps = [
-                "Vibe'i yakaliyorum...",
-                "Sarkilari ayikliyorum...",
-                "Akisi kuruyorum...",
-                "Son dokunuslar..."
+                "Vibe'i yakalıyorum",
+                "Şarkıları ayıklıyorum",
+                "Akışı kuruyorum",
+                "Son dokunuşlar"
             ];
             let stepIdx = 0;
-            loadingTitle.textContent = "Playlist hazırlanıyor...";
             loadingSub.textContent = steps[0];
 
-            loadingTimer = setInterval(() => {
-                // ilk hizli, sonra yavaslayarak ilerlesin
-                const inc = p < 60 ? 6 : (p < 85 ? 3 : 1);
-                p = Math.min(95, p + inc);
-                loadingBar.style.width = p + "%";
+            let p = 0;
+            const t0 = Date.now();
 
-                if (p % 18 === 0 && stepIdx < steps.length - 1) {
-                    stepIdx++;
+            if (loadingTimer) clearInterval(loadingTimer);
+            loadingTimer = setInterval(() => {
+                const t = (Date.now() - t0) / 1000;
+
+                const capFast = 88;
+                const capSlow = 94;
+
+                if (t <= 6) {
+                    const x = t / 6;
+                    p = capFast * (1 - (1 - x) * (1 - x));
+                } else {
+                    p = capFast + (capSlow - capFast) * (1 - Math.exp(-(t - 6) / 6));
+                }
+
+                p = Math.min(capSlow, p);
+                loadingBar.style.width = Math.round(p) + "%";
+
+                const nextStep = Math.min(steps.length - 1, Math.floor(t / 2));
+                if (nextStep !== stepIdx) {
+                    stepIdx = nextStep;
                     loadingSub.textContent = steps[stepIdx];
                 }
-            }, 260);
+            }, 120);
+        }
+
+        function finishLoading() {
+            if (loadingTimer) clearInterval(loadingTimer);
+            if (dotsTimer) clearInterval(dotsTimer);
+
+            loadingTitle.textContent = "Tamamlandı";
+            loadingSub.textContent = "Hazır.";
+            loadingBar.style.width = "100%";
+
+            setTimeout(() => {
+                loadingWrap.style.display = "none";
+                loadingBar.style.width = "0%";
+            }, 350);
         }
 
         function finishLoading() {
