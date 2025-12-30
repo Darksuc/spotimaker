@@ -53,7 +53,7 @@ function setCookie(res, name, value, maxAgeMs) {
             "SameSite=Lax",
             isProd ? "Secure" : ""
         ].filter(Boolean).join("; ");
-        res.setHeader("Set-Cookie", cookie);
+        res.append("Set-Cookie", cookie);
     }
 
     const isProd = process.env.NODE_ENV === "production";
@@ -65,7 +65,7 @@ function setCookie(res, name, value, maxAgeMs) {
         "SameSite=Lax",
         isProd ? "Secure" : ""
     ].filter(Boolean).join("; ");
-    res.setHeader("Set-Cookie", cookie);
+    res.append("Set-Cookie", cookie);
 }
 
 function getCookie(req, name) {
