@@ -618,6 +618,11 @@
         let lastPlaylist = null;
 
         btn.onclick = async () => {
+            if (btn.dataset.loading === "1") return;
+            btn.dataset.loading = "1";
+
+          
+
             out.innerHTML = "";
             out.className = "";
             btn.disabled = true;
@@ -719,7 +724,11 @@
                 out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
             } finally {
                 finishLoading();
+                btn.dataset.loading = "0";
+
                 btn.disabled = false;
+                btn.dataset.loading = "0";
+
             }
         };
 

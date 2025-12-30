@@ -18,6 +18,30 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --- cookie helpers (MVP) ---
+function buildEnergyCurve(n) {
+    const arr = [];
+    if (!Number.isFinite(n) || n <= 0) return arr;
+
+    // 0-25%: ease-in (3->6)
+    // 25-70%: main peak (6->9)
+    // 70-100%: resolution (9->5)
+    for (let i = 0; i < n; i++) {
+        const x = i / Math.max(1, n - 1);
+        let v;
+
+        if (x < 0.25) {
+            v = 3 + Math.round(3 * (x / 0.25));
+        } else if (x < 0.70) {
+            v = 6 + Math.round(3 * ((x - 0.25) / 0.45));
+        } else {
+            v = 9 - Math.round(4 * ((x - 0.70) / 0.30));
+        }
+
+        arr.push(Math.max(1, Math.min(10, v)));
+    }
+    return arr;
+}
+
 function setCookie(res, name, value, maxAgeMs) {
     const isProd = process.env.NODE_ENV === "production";
     const cookie = [
@@ -62,12 +86,6 @@ const playlistSchema = {
                 maxItems: 3,
                 items: { type: "string", minLength: 2, maxLength: 24 }
             },
-            energy_curve: {
-                type: "array",
-                minItems: 20,
-                maxItems: 200,
-                items: { type: "integer", minimum: 1, maximum: 10 }
-            },
             tracks: {
                 type: "array",
                 minItems: 20,
@@ -83,7 +101,7 @@ const playlistSchema = {
                 }
             }
         },
-        required: ["language", "title", "description", "vibe_tags", "energy_curve", "tracks"]
+        required: ["language", "title", "description", "vibe_tags",  "tracks"]
     }
 };
 
@@ -411,8 +429,6 @@ ${spotifyProfileText}
         const exactSchema = structuredClone(playlistSchema);
         exactSchema.schema.properties.tracks.minItems = requestedCount;
         exactSchema.schema.properties.tracks.maxItems = requestedCount;
-        exactSchema.schema.properties.energy_curve.minItems = requestedCount;
-        exactSchema.schema.properties.energy_curve.maxItems = requestedCount;
 
 
         const response = await client.responses.create({
@@ -432,7 +448,12 @@ ${spotifyProfileText}
         });
 
         const jsonText = response.output_text;
+        console.log("OPENAI_USAGE", response.usage || null);
+
         const data = JSON.parse(jsonText);
+        // server-generated energy curve (saves output tokens)
+        data.energy_curve = buildEnergyCurve((data.tracks && data.tracks.length) ? data.tracks.length : requestedCount);
+
         console.log("GENERATE_EVENT", {
             spotify_connected: Boolean(spotifyToken),
             requestedCount,
