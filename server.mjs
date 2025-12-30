@@ -183,27 +183,41 @@ app.get("/", (req, res) => {
 
 // Spotify OAuth
 app.get("/login", (req, res) => {
-    const state = crypto.randomBytes(12).toString("hex");
-    setCookie(res, "spotify_state", state, 10 * 60 * 1000);
+    try {
+        const state = crypto.randomBytes(12).toString("hex");
+        setCookie(res, "spotify_state", state, 10 * 60 * 1000);
 
-    const scope = [
-        "user-top-read",
-        "playlist-read-private",
-        "playlist-modify-public",
-        "playlist-modify-private"
-    ].join(" ");
+        const scope = [
+            "user-top-read",
+            "playlist-read-private",
+            "playlist-modify-public",
+            "playlist-modify-private"
+        ].join(" ");
 
-    const params = querystring.stringify({
-        response_type: "code",
-        client_id: process.env.SPOTIFY_CLIENT_ID,
-        scope,
-        redirect_uri: process.env.SPOTIFY_REDIRECT_URI.trim(),
-        state,
-        show_dialog: "true"
+        const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
+        const clientId = String(process.env.SPOTIFY_CLIENT_ID || "").trim();
 
-    });
+        if (!clientId || !redirectUri) {
+            console.error("Spotify ENV eksik:", {
+                SPOTIFY_CLIENT_ID: !!clientId,
+                SPOTIFY_REDIRECT_URI: !!redirectUri
+            });
+            return res.status(500).send("Sunucu ayarý eksik: Spotify giriþ bilgileri tanýmlý deðil (CLIENT_ID / REDIRECT_URI).");
+        }
 
-    res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+        const params = querystring.stringify({
+            response_type: "code",
+            client_id: clientId,
+            scope,
+            redirect_uri: redirectUri,
+            state
+        });
+
+        return res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+    } catch (e) {
+        console.error("/login crashed:", e);
+        return res.status(500).send("Spotify giriþ baþlatýlýrken hata oluþtu.");
+    }
 });
 
 app.get("/callback", async (req, res) => {
@@ -220,7 +234,7 @@ app.get("/callback", async (req, res) => {
         const body = new URLSearchParams({
             grant_type: "authorization_code",
             code,
-            redirect_uri: process.env.SPOTIFY_REDIRECT_URI.trim()
+            redirect_uri: String(process.env.SPOTIFY_REDIRECT_URI || "").trim()
         });
 
         const auth = Buffer.from(
