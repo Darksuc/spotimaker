@@ -33,21 +33,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --- cookie helpers (MVP) ---
-async function getSpotifyMeId(req) {
-    const token = getCookie(req, "spotify_access_token");
-    if (!token) return "";
-    try {
-        const meRes = await fetch("https://api.spotify.com/v1/me", {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const me = await meRes.json();
-        if (!meRes.ok) return "";
-        return String(me?.id || "");
-    } catch {
-        return "";
-    }
-}
-
 function buildEnergyCurve(n) {
     const arr = [];
     if (!Number.isFinite(n) || n <= 0) return arr;
