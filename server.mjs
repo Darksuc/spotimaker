@@ -580,23 +580,73 @@ async function saveSpotifyPlaylist(req, res) {
         }
 
         // 4) Add to playlist (Spotify allows up to 100 URIs per request)
+        // ---- helper: add tracks with retry (handles 429 + transient 5xx) ----
+        async function addTracksChunkWithRetry(playlistId, chunk, maxAttempts = 4) {
+            let attempt = 0;
+
+            while (attempt < maxAttempts) {
+                attempt++;
+
+                const addRes = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ uris: chunk })
+                });
+
+                const text = await addRes.text().catch(() => "");
+                let addJson = {};
+                try { addJson = text ? JSON.parse(text) : {}; } catch { addJson = { raw: text }; }
+
+                // success
+                if (addRes.ok) return { ok: true, data: addJson };
+
+                // token expired / auth issues -> no point retrying
+                if (addRes.status === 401 || addRes.status === 403) {
+                    return { ok: false, status: addRes.status, data: addJson, fatal: true };
+                }
+
+                // rate limited -> wait and retry
+                if (addRes.status === 429) {
+                    const ra = Number(addRes.headers.get("retry-after") || "1");
+                    const waitMs = Math.max(1000, ra * 1000);
+                    await new Promise(r => setTimeout(r, waitMs));
+                    continue;
+                }
+
+                // transient server errors -> retry with backoff
+                if (addRes.status >= 500 && addRes.status <= 599) {
+                    const waitMs = 600 * attempt; // simple backoff
+                    await new Promise(r => setTimeout(r, waitMs));
+                    continue;
+                }
+
+                // other 4xx -> probably bad request, don't retry
+                return { ok: false, status: addRes.status, data: addJson, fatal: true };
+            }
+
+            return { ok: false, status: 429, data: { error: { message: "rate_limited_retries_exhausted" } }, fatal: true };
+        }
+
+        // 4) Add to playlist (Spotify allows up to 100 URIs per request)
         for (let i = 0; i < uris.length; i += 100) {
             const chunk = uris.slice(i, i + 100);
-            const addRes = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
 
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
+            const r = await addTracksChunkWithRetry(playlistId, chunk, 4);
+            if (!r.ok) {
+                console.error("Failed adding tracks:", r.status, r.data);
 
-                body: JSON.stringify({ uris: chunk })
-            });
-
-            const addJson = await addRes.json();
-            if (!addRes.ok) {
-                return res.status(500).json({ error: "Failed adding tracks", details: addJson, created, skipped });
+                return res.status(500).json({
+                    error: `Failed adding tracks (status ${r.status})`,
+                    spotify: r.data,
+                    playlist: created,
+                    skipped
+                });
+            }
         }
+        
             // ---- admin stats: playlist_saved (write once, after all chunks succeed) ----
             try {
                 if (me?.id) {
@@ -609,7 +659,7 @@ async function saveSpotifyPlaylist(req, res) {
                 console.error("markPlaylistSaved failed:", e);
             }
     
-        }
+        
         console.log("SAVE_EVENT", {
             spotify_id: me?.id,
             playlistId,
