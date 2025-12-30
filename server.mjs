@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
-import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats, isPremium } from "./db.mjs";
+import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats, isPremium, countSavedToday } from "./db.mjs";
 async function getSpotifyMeId(req) {
     const token = getCookie(req, "spotify_access_token");
     if (!token) return "";
@@ -97,7 +97,7 @@ function getCookie(req, name) {
     return decodeURIComponent(found.split("=").slice(1).join("="));
 }
 function setCookie(res, name, value, maxAgeMs) {
-    const secure = process.env.NODE_ENV === "production";
+    const isProd = process.env.NODE_ENV === "production";
     const parts = [
         `${name}=${encodeURIComponent(value)}`,
         "Path=/",
@@ -105,8 +105,8 @@ function setCookie(res, name, value, maxAgeMs) {
         "HttpOnly",
         "SameSite=Lax"
     ];
-    if (secure) parts.push("Secure");
-    res.setHeader("Set-Cookie", parts.join("; "));
+    if (isProd) parts.push("Secure");
+    res.append("Set-Cookie", parts.join("; "));
 }
 
 // --- paths ---
@@ -286,6 +286,7 @@ app.get("/callback", async (req, res) => {
         } catch (e) {
             console.error("upsertUser failed:", e);
         }
+        clearCookie(res, req, "spotify_state");
 
         setCookie(res, "spotify_access_token", data.access_token, (data.expires_in || 3600) * 1000);
         return res.redirect("/");
