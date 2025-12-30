@@ -5,6 +5,21 @@ import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
 import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats } from "./db.mjs";
+async function getSpotifyMeId(req) {
+    const token = getCookie(req, "spotify_access_token");
+    if (!token) return "";
+    try {
+        const meRes = await fetch("https://api.spotify.com/v1/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const me = await meRes.json();
+        if (!meRes.ok) return "";
+        return String(me?.id || "");
+    } catch {
+        return "";
+    }
+}
+    
 
 
 // ---- simple in-memory cache for Spotify profile (MVP) ----
@@ -18,6 +33,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --- cookie helpers (MVP) ---
+async function getSpotifyMeId(req) {
+    const token = getCookie(req, "spotify_access_token");
+    if (!token) return "";
+    try {
+        const meRes = await fetch("https://api.spotify.com/v1/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const me = await meRes.json();
+        if (!meRes.ok) return "";
+        return String(me?.id || "");
+    } catch {
+        return "";
+    }
+}
+
 function buildEnergyCurve(n) {
     const arr = [];
     if (!Number.isFinite(n) || n <= 0) return arr;
@@ -404,7 +434,27 @@ Use this profile to personalize the playlist.
 
         const userText = String(req.body?.text ?? "").trim();
         const requestedCountRaw = Number(req.body?.count ?? 20);
-        const requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
+        let requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
+
+        // --- PREMIUM/FREE LIMITS ---
+        let premium = false;
+        try {
+            // spotify baðlýysa premium kontrol edelim (me.id ile)
+            if (spotifyToken) {
+                const meRes = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${spotifyToken}` }
+                });
+                const me = await meRes.json();
+                if (meRes.ok && me?.id) premium = isPremium(me.id);
+            }
+        } catch (e) {
+            console.error("premium check failed", e);
+        }
+
+        const FREE_MAX = 40;
+        const PREMIUM_MAX = 200;
+        const hardMax = premium ? PREMIUM_MAX : FREE_MAX;
+        requestedCount = Math.max(20, Math.min(hardMax, requestedCount));
 
         if (!userText) return res.status(400).json({ error: "Missing text" });
 
@@ -413,7 +463,7 @@ You are an expert music curator and playlist designer.
 You deeply understand mood, emotion, tempo, and how music guides feelings over time.
 STRICT RULES:
 -You will be given requested_count.
--You MUST return exactly requested_count tracks, and energy_curve must have exactly requested_count items
+-You MUST return exactly requested_count tracks.
 - Follow the user's mood, energy, language, and era strictly.
 - If the user provides example songs or artists, include at least one of them in the playlist.
 - Match the overall vibe to the examples given.
@@ -539,6 +589,21 @@ async function saveSpotifyPlaylist(req, res) {
         });
         const me = await meRes.json();
         if (!meRes.ok) return res.status(500).json({ error: "Failed to read Spotify profile", details: me });
+        // --- PREMIUM/FREE DAILY SAVE LIMIT ---
+        const premium = isPremium(me.id);
+        const FREE_DAILY_SAVE = 1;
+
+        if (!premium) {
+            const savedToday = countSavedToday(me.id, "Europe/Istanbul");
+            if (savedToday >= FREE_DAILY_SAVE) {
+                return res.status(429).json({
+                    error: "Free gunluk Spotify'a kaydetme limiti doldu. Premium ile limitsiz.",
+                    savedToday,
+                    limit: FREE_DAILY_SAVE
+                });
+            }
+        }
+
 
         // 2) Create playlist
         const createRes = await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
