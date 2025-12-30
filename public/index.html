@@ -447,15 +447,16 @@
     </div>
 
     <script>
-        countInput?.addEventListener("input", updateCountHint);
-        const premiumBadge = document.getElementById("premiumBadge");
+                const premiumBadge = document.getElementById("premiumBadge");
         const countHint = document.getElementById("countHint");
         const countInput = document.getElementById("count");
+        let __isPremium = false;
+
+        countInput?.addEventListener("input", updateCountHint);
         const logoutLink = document.getElementById("logoutLink");
         const btn = document.getElementById("btn");
         const spotifyStatus = document.getElementById("spotifyStatus");
         const spotifyLink = document.getElementById("spotifyLink");
-        let __isPremium = false;
 
         function updateCountHint() {
             if (!countHint || !countInput) return;
@@ -472,6 +473,7 @@
                 countHint.style.color = "rgba(255,255,255,.75)";
             }
         }
+        countInput?.addEventListener("input", updateCountHint);
 
 
         async function refreshSpotifyStatus() {
