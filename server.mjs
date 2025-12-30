@@ -43,6 +43,19 @@ function buildEnergyCurve(n) {
 }
 
 function setCookie(res, name, value, maxAgeMs) {
+    function clearCookie(res, name) {
+        const isProd = process.env.NODE_ENV === "production";
+        const cookie = [
+            `${name}=`,
+            "Max-Age=0",
+            "Path=/",
+            "HttpOnly",
+            "SameSite=Lax",
+            isProd ? "Secure" : ""
+        ].filter(Boolean).join("; ");
+        res.setHeader("Set-Cookie", cookie);
+    }
+
     const isProd = process.env.NODE_ENV === "production";
     const cookie = [
         `${name}=${encodeURIComponent(value)}`,
@@ -164,7 +177,9 @@ app.get("/login", (req, res) => {
         client_id: process.env.SPOTIFY_CLIENT_ID,
         scope,
         redirect_uri: process.env.SPOTIFY_REDIRECT_URI.trim(),
-        state
+        state,
+        show_dialog: "true"
+
     });
 
     res.redirect(`https://accounts.spotify.com/authorize?${params}`);
@@ -240,6 +255,16 @@ function requireSpotifyToken(req, res) {
     }
     return token;
 }
+app.get("/logout", (req, res) => {
+    try {
+        clearCookie(res, "spotify_access_token");
+        clearCookie(res, "spotify_state");
+        return res.redirect("/");
+    } catch (e) {
+        console.error("logout failed", e);
+        return res.redirect("/");
+    }
+});
 
 app.get("/spotify/top", async (req, res) => {
     try {
