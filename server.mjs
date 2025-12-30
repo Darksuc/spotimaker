@@ -96,6 +96,18 @@ function getCookie(req, name) {
     if (!found) return "";
     return decodeURIComponent(found.split("=").slice(1).join("="));
 }
+function setCookie(res, name, value, maxAgeMs) {
+    const secure = process.env.NODE_ENV === "production";
+    const parts = [
+        `${name}=${encodeURIComponent(value)}`,
+        "Path=/",
+        `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
+        "HttpOnly",
+        "SameSite=Lax"
+    ];
+    if (secure) parts.push("Secure");
+    res.setHeader("Set-Cookie", parts.join("; "));
+}
 
 // --- paths ---
 const __filename = fileURLToPath(import.meta.url);
