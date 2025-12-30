@@ -216,7 +216,7 @@ app.get("/login", (req, res) => {
         return res.redirect(`https://accounts.spotify.com/authorize?${params}`);
     } catch (e) {
         console.error("/login crashed:", e);
-        return res.status(500).send("Spotify giriþ baþlatýlýrken hata oluþtu.");
+        return res.status(500).send("Spotify giriþ baþlatýlýrken hata oluþtu: " + (e?.message || String(e)));
     }
 });
 
