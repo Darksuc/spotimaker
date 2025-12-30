@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
-import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats } from "./db.mjs";
+import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats, isPremium } from "./db.mjs";
 async function getSpotifyMeId(req) {
     const token = getCookie(req, "spotify_access_token");
     if (!token) return "";
@@ -343,16 +343,6 @@ app.get("/spotify/top", async (req, res) => {
 });
 
 app.get("/api/me", async (req, res) => {
-    function requireAdmin(req, res) {
-        const token = String(req.query.token || req.headers["x-admin-token"] || "");
-        if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
-            res.status(401).send("Unauthorized");
-            return false;
-        }
-        return true;
-    }
-
-
     try {
         const token = getCookie(req, "spotify_access_token");
         if (!token) return res.status(200).json({ ok: false });
@@ -367,9 +357,18 @@ app.get("/api/me", async (req, res) => {
             return res.status(200).json({ ok: false });
         }
 
-        return res.json({ ok: true, me: { id: data.id, display_name: data.display_name } });
+        const premium = isPremium(data.id);
+
+        return res.status(200).json({
+            ok: true,
+            me: {
+                id: data.id,
+                display_name: data.display_name
+            },
+            premium
+        });
     } catch (e) {
-        console.error(e);
+        console.error("api/me failed:", e);
         return res.status(200).json({ ok: false });
     }
 });
@@ -590,19 +589,19 @@ async function saveSpotifyPlaylist(req, res) {
         const me = await meRes.json();
         if (!meRes.ok) return res.status(500).json({ error: "Failed to read Spotify profile", details: me });
         // --- PREMIUM/FREE DAILY SAVE LIMIT ---
-        const premium = isPremium(me.id);
-        const FREE_DAILY_SAVE = 1;
+const premium = isPremium(me.id);
+const FREE_DAILY_SAVE = 1;
 
-        if (!premium) {
-            const savedToday = countSavedToday(me.id, "Europe/Istanbul");
-            if (savedToday >= FREE_DAILY_SAVE) {
-                return res.status(429).json({
-                    error: "Free gunluk Spotify'a kaydetme limiti doldu. Premium ile limitsiz.",
-                    savedToday,
-                    limit: FREE_DAILY_SAVE
-                });
-            }
-        }
+if (!premium) {
+    const savedToday = countSavedToday(me.id, "Europe/Istanbul");
+    if (savedToday >= FREE_DAILY_SAVE) {
+        return res.status(429).json({
+            error: "Free gunluk Spotify'a kaydetme limiti doldu. Premium ile limitsiz.",
+            savedToday,
+            limit: FREE_DAILY_SAVE
+        });
+    }
+}
 
 
         // 2) Create playlist

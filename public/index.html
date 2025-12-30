@@ -384,6 +384,17 @@
                     <div class="brand-name">Spotimaker</div>
                     <div class="brand-sub">Ruh haline göre playlist.</div>
                     <div id="spotifyStatus" class="spotify-badge">Spotify bagli degil</div>
+                    <span id="premiumBadge"
+                          style="display:none; margin-left:8px; padding:4px 8px;
+             border-radius:999px; background:rgba(234,179,8,.25);
+             color:#fff; font-size:12px;">
+                        PREMIUM
+                    </span>
+
+                    <span id="premiumBadge" style="display:none; margin-left:8px; padding:4px 8px; border-radius:999px; background:rgba(234,179,8,.25); color:#fff; font-size:12px;">
+                        PREMIUM
+                    </span>
+
                 </div>
             </div>
 
@@ -420,6 +431,8 @@
                     <div style="color:rgba(255,255,255,.55); font-size:12px;">20 - 200</div>
                 </div>
                 <input id="count" type="range" min="20" max="200" step="10" value="20" />
+                <div id="countHint" style="margin-top:8px; opacity:.85; font-size:12px;"></div>
+
                 <div class="slider-note">Free: günlük 50 şarkı Spotify'a kaydetme hakkı (yakında). Daha fazlası Premium.</div>
             </div>
 
@@ -434,10 +447,32 @@
     </div>
 
     <script>
+        countInput?.addEventListener("input", updateCountHint);
+        const premiumBadge = document.getElementById("premiumBadge");
+        const countHint = document.getElementById("countHint");
+        const countInput = document.getElementById("count");
         const logoutLink = document.getElementById("logoutLink");
         const btn = document.getElementById("btn");
         const spotifyStatus = document.getElementById("spotifyStatus");
         const spotifyLink = document.getElementById("spotifyLink");
+        let __isPremium = false;
+
+        function updateCountHint() {
+            if (!countHint || !countInput) return;
+
+            const v = Number(countInput.value || 20);
+
+            if (!__isPremium && v > 40) {
+                countHint.textContent = "Free kullanıcılar için üst sınır 40 şarkı. Daha fazlası seçilse bile 40'a düşürülecek. Premium ile 200'e kadar.";
+                countHint.style.color = "rgba(255,255,255,.95)";
+            } else {
+                countHint.textContent = __isPremium
+                    ? "Premium: 200'e kadar şarkı üretebilirsin."
+                    : "Free: 40'a kadar şarkı üretebilirsin.";
+                countHint.style.color = "rgba(255,255,255,.75)";
+            }
+        }
+
 
         async function refreshSpotifyStatus() {
             try {
@@ -456,6 +491,14 @@
                     spotifyLink.style.pointerEvents = "auto";
                     spotifyLink.style.opacity = "1";
 
+                    __isPremium = Boolean(j.premium);
+
+                    if (premiumBadge) {
+                        premiumBadge.style.display = __isPremium ? "inline-block" : "none";
+                    }
+                    updateCountHint();
+
+
                     if (logoutLink) logoutLink.style.display = "inline-block";
                 } else {
                     spotifyStatus.textContent = "Spotify bagli degil";
@@ -466,10 +509,18 @@
                     spotifyLink.href = "/login";
                     spotifyLink.style.pointerEvents = "auto";
                     spotifyLink.style.opacity = "1";
+                    __isPremium = false;
+                    if (premiumBadge) premiumBadge.style.display = "none";
+                    updateCountHint();
+
 
                     if (logoutLink) logoutLink.style.display = "none";
                 }
             } catch (e) {
+                __isPremium = false;
+if (premiumBadge) premiumBadge.style.display = "none";
+updateCountHint();
+
                 // fallback
                 if (logoutLink) logoutLink.style.display = "none";
             }
@@ -477,12 +528,15 @@
         refreshSpotifyStatus();
         window.addEventListener("load", () => {
             refreshSpotifyStatus();
+            updateCountHint();
+
 
             document.getElementById("spotifyLink")?.addEventListener("click", () => {
                 console.log("spotifyLink clicked");
             });
         });
 
+        countInput?.addEventListener("input", updateCountHint);
 
         // sayfa acilinca calissin
         
@@ -723,7 +777,7 @@
 
                 btn.disabled = false;
                 btn.dataset.loading = "0";
-
+                    
             }
         };
 
