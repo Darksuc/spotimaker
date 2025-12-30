@@ -90,6 +90,7 @@ export function getStats() {
     const active24h = Object.values(usersObj).filter(u => (u.last_seen || 0) >= cutoff).length;
 
     return { totalUsers, totalEvents, active24h };
+}
     export function setPremiumUntil(spotify_id, premium_until_ts) {
         const users = readJson(USERS_PATH, {});
         if (!users[spotify_id]) return false;
@@ -119,4 +120,4 @@ export function getStats() {
         return c;
     }
 
-}
+
