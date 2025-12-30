@@ -42,30 +42,36 @@ function buildEnergyCurve(n) {
     return arr;
 }
 
-function setCookie(res, name, value, maxAgeMs) {
-    function clearCookie(res, name) {
-        const isProd = process.env.NODE_ENV === "production";
-        const cookie = [
-            `${name}=`,
-            "Max-Age=0",
-            "Path=/",
-            "HttpOnly",
-            "SameSite=Lax",
-            isProd ? "Secure" : ""
-        ].filter(Boolean).join("; ");
-        res.append("Set-Cookie", cookie);
-    }
-
+function clearCookie(res, req, name) {
     const isProd = process.env.NODE_ENV === "production";
-    const cookie = [
-        `${name}=${encodeURIComponent(value)}`,
-        `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
-        "Path=/",
-        "HttpOnly",
-        "SameSite=Lax",
-        isProd ? "Secure" : ""
-    ].filter(Boolean).join("; ");
-    res.append("Set-Cookie", cookie);
+
+    // Ayný isimli cookie farklý Domain/Path ile set edilmiþ olabilir.
+    // Bu yüzden birkaç varyasyonla öldürüyoruz.
+    const host = (req?.hostname || "").split(":")[0]; // spotimaker.onrender.com gibi
+    const domains = [
+        undefined,          // domain belirtme
+        host || undefined,  // spotimaker.onrender.com
+        ".onrender.com"     // wildcard domain (sende bu þekilde set edilmiþ olabilir)
+    ].filter((d, i, a) => a.indexOf(d) === i);
+
+    const paths = ["/", undefined].filter((p, i, a) => a.indexOf(p) === i);
+
+    for (const domain of domains) {
+        for (const path of paths) {
+            const parts = [
+                `${name}=`,
+                "Max-Age=0",
+                "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+                `Path=${path || "/"}`,
+                domain ? `Domain=${domain}` : "",
+                "HttpOnly",
+                "SameSite=Lax",
+                isProd ? "Secure" : ""
+            ].filter(Boolean);
+
+            res.append("Set-Cookie", parts.join("; "));
+        }
+    }
 }
 
 function getCookie(req, name) {
@@ -257,13 +263,21 @@ function requireSpotifyToken(req, res) {
 }
 app.get("/logout", (req, res) => {
     try {
-        clearCookie(res, "spotify_access_token");
-        clearCookie(res, "spotify_state");
+        clearCookie(res, req, "spotify_access_token");
+        clearCookie(res, req, "spotify_state");
         return res.redirect("/");
     } catch (e) {
         console.error("logout failed", e);
         return res.redirect("/");
     }
+});
+app.get("/debug/cookies", (req, res) => {
+    res.json({
+        hostname: req.hostname,
+        cookieHeader: req.headers.cookie || "",
+        accessTokenPresent: Boolean(getCookie(req, "spotify_access_token")),
+        statePresent: Boolean(getCookie(req, "spotify_state"))
+    });
 });
 
 app.get("/spotify/top", async (req, res) => {
