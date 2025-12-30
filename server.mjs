@@ -7,6 +7,12 @@ import crypto from "crypto";
 import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats } from "./db.mjs";
 
 
+// ---- simple in-memory cache for Spotify profile (MVP) ----
+const spotifyProfileCache = new Map();
+// key: spotify_access_token
+// value: { text: string, ts: number }
+const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 minutes
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -290,38 +296,52 @@ app.post("/api/generate", async (req, res) => {
         let spotifyProfileText = "";
 
         if (spotifyToken) {
-            try {
-                const [tracksRes, artistsRes] = await Promise.all([
-                    fetch("https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term", {
-                        headers: { Authorization: `Bearer ${spotifyToken}` }
-                    }),
-                    fetch("https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term", {
-                        headers: { Authorization: `Bearer ${spotifyToken}` }
-                    })
-                ]);
+            const cached = spotifyProfileCache.get(spotifyToken);
+            const now = Date.now();
 
-                if (tracksRes.ok && artistsRes.ok) {
-                    const tracksJson = await tracksRes.json();
-                    const artistsJson = await artistsRes.json();
+            if (cached && (now - cached.ts) < SPOTIFY_PROFILE_TTL) {
+                //  cache hit
+                spotifyProfileText = cached.text;
+            } else {
+                try {
+                    const [tracksRes, artistsRes] = await Promise.all([
+                        fetch("https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term", {
+                            headers: { Authorization: `Bearer ${spotifyToken}` }
+                        }),
+                        fetch("https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term", {
+                            headers: { Authorization: `Bearer ${spotifyToken}` }
+                        })
+                    ]);
 
-                    const topTracks = (tracksJson.items || [])
-                        .map(t => `${t.name} by ${t.artists?.[0]?.name || ""}`)
-                        .join(", ");
+                    if (tracksRes.ok && artistsRes.ok) {
+                        const tracksJson = await tracksRes.json();
+                        const artistsJson = await artistsRes.json();
 
-                    const topArtists = (artistsJson.items || [])
-                        .map(a => a.name)
-                        .join(", ");
+                        const topTracks = (tracksJson.items || [])
+                            .map(t => `${t.name} by ${t.artists?.[0]?.name || ""}`)
+                            .join(", ");
 
-                    spotifyProfileText = `
+                        const topArtists = (artistsJson.items || [])
+                            .map(a => a.name)
+                            .join(", ");
+
+                        spotifyProfileText = `
 User listening profile:
 Top artists: ${topArtists}
 Top tracks: ${topTracks}
 
 Use this profile to personalize the playlist.
 `.trim();
+
+                        //  cache write
+                        spotifyProfileCache.set(spotifyToken, {
+                            text: spotifyProfileText,
+                            ts: now
+                        });
+                    }
+                } catch (e) {
+                    console.error("Spotify profile fetch failed", e);
                 }
-            } catch (e) {
-                console.error("Spotify profile fetch failed", e);
             }
         }
 
@@ -588,7 +608,7 @@ async function saveSpotifyPlaylist(req, res) {
             } catch (e) {
                 console.error("markPlaylistSaved failed:", e);
             }
-
+    
         }
         console.log("SAVE_EVENT", {
             spotify_id: me?.id,
