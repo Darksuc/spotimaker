@@ -479,32 +479,77 @@ async function saveSpotifyPlaylist(req, res) {
 
         const playlistId = created.id;
 
-        // helper: search a track URI
+        // ---- helpers: normalize + concurrency-limited Spotify search ----
+        function normalizeStr(s) {
+            return String(s || "")
+                .replace(/\s+/g, " ")
+                .replace(/\((.*?)\)/g, "")      // remove (...) like (Remastered)
+                .replace(/\[(.*?)\]/g, "")      // remove [...] like [Live]
+                .replace(/feat\.?/ig, "")
+                .replace(/ft\.?/ig, "")
+                .replace(/–/g, "-")
+                .trim();
+        }
+
+        // Simple concurrency limiter (no deps)
+        async function mapLimit(items, limit, mapper) {
+            const results = new Array(items.length);
+            let i = 0;
+            const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+                while (true) {
+                    const idx = i++;
+                    if (idx >= items.length) break;
+                    results[idx] = await mapper(items[idx], idx);
+                }
+            });
+            await Promise.all(workers);
+            return results;
+        }
+
+        // helper: search a track URI (better query + safer fallback)
         async function findTrackUri(artist, song) {
-            const q = `track:${song} artist:${artist}`;
-            const url = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`;
+            const a = normalizeStr(artist);
+            const s = normalizeStr(song);
+            if (!a || !s) return null;
 
-            const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-            const j = await r.json();
-            if (!r.ok) return null;
+            // 1) strict query with quotes
+            const q1 = `track:"${s}" artist:"${a}"`;
+            const url1 = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q1)}`;
 
-            const item = j?.tracks?.items?.[0];
-            return item?.uri || null;
+            const r1 = await fetch(url1, { headers: { Authorization: `Bearer ${token}` } });
+            const j1 = await r1.json().catch(() => ({}));
+            if (r1.ok) {
+                const item1 = j1?.tracks?.items?.[0];
+                if (item1?.uri) return item1.uri;
+            }
+
+            // 2) fallback: broader query
+            const q2 = `${s} ${a}`;
+            const url2 = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q2)}`;
+
+            const r2 = await fetch(url2, { headers: { Authorization: `Bearer ${token}` } });
+            const j2 = await r2.json().catch(() => ({}));
+            if (!r2.ok) return null;
+
+            const item2 = j2?.tracks?.items?.[0];
+            return item2?.uri || null;
         }
 
-        // 3) Resolve URIs
-        const uris = [];
-        const skipped = [];
+        // 3) Resolve URIs (concurrency-limited for speed + avoid rate limits)
+        const cleanedTracks = (tracks || [])
+            .map(t => ({
+                artist: String(t.artist || "").trim(),
+                song: String(t.song || "").trim()
+            }))
+            .filter(t => t.artist && t.song);
 
-        for (const t of tracks) {
-            const artist = String(t.artist || "").trim();
-            const song = String(t.song || "").trim();
-            if (!artist || !song) continue;
+        const resolved = await mapLimit(cleanedTracks, 8, async (t) => { // 8 = good default
+            const uri = await findTrackUri(t.artist, t.song);
+            return { ...t, uri };
+        });
 
-            const uri = await findTrackUri(artist, song);
-            if (uri) uris.push(uri);
-            else skipped.push({ artist, song });
-        }
+        const uris = resolved.filter(x => x.uri).map(x => x.uri);
+        const skipped = resolved.filter(x => !x.uri).map(x => ({ artist: x.artist, song: x.song }));
 
         if (uris.length === 0) {
             return res.status(400).json({
@@ -532,17 +577,17 @@ async function saveSpotifyPlaylist(req, res) {
             if (!addRes.ok) {
                 return res.status(500).json({ error: "Failed adding tracks", details: addJson, created, skipped });
         }
-        // ---- admin stats: playlist_saved ----
-        try {
-            if (me?.id) {
-                markPlaylistSaved(
-                    me.id,
-                    `playlist=${playlistId};added=${uris.length};requested=${tracks.length}`
-                );
+            // ---- admin stats: playlist_saved (write once, after all chunks succeed) ----
+            try {
+                if (me?.id) {
+                    markPlaylistSaved(
+                        me.id,
+                        `playlist=${playlistId};added=${uris.length};requested=${tracks.length};skipped=${skipped.length}`
+                    );
+                }
+            } catch (e) {
+                console.error("markPlaylistSaved failed:", e);
             }
-        } catch (e) {
-            console.error("markPlaylistSaved failed:", e);
-        }
 
         }
         console.log("SAVE_EVENT", {
