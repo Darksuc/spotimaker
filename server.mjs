@@ -306,7 +306,19 @@ function requireSpotifyToken(req, res) {
     }
     return token;
 }
-app.get("/logout", (req, res) => {
+    // Çýkýþ yap: cookie temizle, ana sayfaya dön
+    app.get("/logout", (req, res) => {
+        try {
+            clearCookie(res, req, "spotify_access_token");
+            clearCookie(res, req, "spotify_state");
+            return res.redirect(302, "/");
+        } catch (e) {
+            console.error("logout failed:", e);
+            return res.redirect(302, "/");
+        }
+    });
+
+    // Hesap deðiþtir: cookie temizle, Spotify login'e force ile git (show_dialog=true)
     app.get("/switch-account", (req, res) => {
         try {
             clearCookie(res, req, "spotify_access_token");
@@ -318,37 +330,14 @@ app.get("/logout", (req, res) => {
         }
     });
 
-    try {
-        clearCookie(res, req, "spotify_access_token");
-        clearCookie(res, req, "spotify_state");
-        return res.redirect("/");
-    } catch (e) {
-        console.error("logout failed", e);
-        return res.redirect("/");
-    }
-});
-app.get("/switch-account", (req, res) => {
-    try {
-        // Bizdeki Spotify token/cookie’leri temizle
-        clearCookie(res, req, "spotify_access_token");
-        clearCookie(res, req, "spotify_state");
-
-        // Sonra direkt Spotify login baþlat
-        return res.redirect(302, "/login?force=1");
-    } catch (e) {
-        console.error("switch-account failed:", e);
-        return res.redirect(302, "/login?force=1");
-    }
-});
-
-app.get("/debug/cookies", (req, res) => {
-    res.json({
-        hostname: req.hostname,
-        cookieHeader: req.headers.cookie || "",
-        accessTokenPresent: Boolean(getCookie(req, "spotify_access_token")),
-        statePresent: Boolean(getCookie(req, "spotify_state"))
+    app.get("/debug/cookies", (req, res) => {
+        res.json({
+            hostname: req.hostname,
+            cookieHeader: req.headers.cookie || "",
+            accessTokenPresent: Boolean(getCookie(req, "spotify_access_token")),
+            statePresent: Boolean(getCookie(req, "spotify_state"))
+        });
     });
-});
 
 app.get("/spotify/top", async (req, res) => {
     try {

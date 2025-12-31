@@ -15,6 +15,7 @@
             --accent: #22c55e;
             --accent2: #3b82f6;
             --danger: #ef4444;
+            --gold: rgba(234,179,8,.25);
         }
 
         * {
@@ -23,7 +24,7 @@
 
         body {
             margin: 0;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
             background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.18), transparent 60%), radial-gradient(1000px 700px at 80% 10%, rgba(59,130,246,.14), transparent 60%), var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -81,9 +82,16 @@
             margin: 2px 0 0;
         }
 
+        .badges {
+            margin-top: 6px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
         .spotify-badge {
             display: inline-block;
-            margin-top: 6px;
             padding: 6px 10px;
             font-size: 12px;
             border-radius: 999px;
@@ -91,6 +99,22 @@
             border: 1px solid var(--line);
             color: var(--muted);
         }
+
+        .pill {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.10);
+            color: rgba(255,255,255,.85);
+        }
+
+            .pill.gold {
+                background: var(--gold);
+                color: #fff;
+                border-color: rgba(234,179,8,.35);
+            }
 
         .nav {
             display: flex;
@@ -242,10 +266,6 @@
             margin-bottom: 8px;
         }
 
-            .slider-top b {
-                font-size: 14px;
-            }
-
         .slider-note {
             font-size: 12px;
             color: rgba(255,255,255,.55);
@@ -349,7 +369,7 @@
             background: rgba(239,68,68,.06);
         }
 
-        @media (max-width: 560px) {
+        @media (max-width:560px) {
             .h1 {
                 font-size: 24px;
             }
@@ -380,29 +400,22 @@
                         <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                     </svg>
                 </div>
+
                 <div>
                     <div class="brand-name">Spotimaker</div>
                     <div class="brand-sub">Ruh haline göre playlist.</div>
-                    <div id="spotifyStatus" class="spotify-badge">Spotify bagli degil</div>
-                    <span id="premiumBadge"
-                          style="display:none; margin-left:8px; padding:4px 8px;
-             border-radius:999px; background:rgba(234,179,8,.25);
-             color:#fff; font-size:12px;">
-                        PREMIUM
-                    </span>
 
-                    <span id="premiumBadge" style="display:none; margin-left:8px; padding:4px 8px; border-radius:999px; background:rgba(234,179,8,.25); color:#fff; font-size:12px;">
-                        PREMIUM
-                    </span>
-
+                    <div class="badges">
+                        <div id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
+                        <span id="planBadge" class="pill">FREE PLAN</span>
+                        <span id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
+                    </div>
                 </div>
             </div>
 
             <nav class="nav">
                 <a href="/premium.html" class="navlink">Premium</a>
-
                 <a id="spotifyLink" href="/login" class="navbtn" target="_self">Spotify bağla</a>
-
                 <a id="logoutLink" href="/logout" class="navlink" style="display:none;">Çıkış yap</a>
             </nav>
         </header>
@@ -411,7 +424,7 @@
             <div class="hero">
                 <div>
                     <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
-                    <p class="p">Mood + ortam + his yeter. Istersen playlisti Spotify hesabına tek tıkla eklersin.</p>
+                    <p class="p">Mood + ortam + his yeter. İstersen playlisti Spotify hesabına tek tıkla eklersin.</p>
                     <div class="hint">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
                 </div>
             </div>
@@ -425,15 +438,22 @@
             <div class="slider-wrap">
                 <div class="slider-top">
                     <div style="display:flex; gap:8px; align-items:baseline;">
-                        <span style="color:var(--muted); font-size:13px;">Sarki sayisi:</span>
+                        <span style="color:var(--muted); font-size:13px;">Şarkı sayısı:</span>
                         <b><span id="countVal">20</span></b>
                     </div>
-                    <div style="color:rgba(255,255,255,.55); font-size:12px;">20 - 200</div>
+                    <div id="rangeHint" style="color:rgba(255,255,255,.55); font-size:12px;">20 - 40</div>
                 </div>
-                <input id="count" type="range" min="20" max="200" step="10" value="20" />
+
+                <input id="count" type="range" min="20" max="40" step="10" value="20" />
                 <div id="countHint" style="margin-top:8px; opacity:.85; font-size:12px;"></div>
 
-                <div class="slider-note">Free: günlük 50 şarkı Spotify'a kaydetme hakkı (yakında). Daha fazlası Premium.</div>
+                <a href="/premium.html" id="goPremium" style="display:inline-block; margin-top:6px; font-size:12px; opacity:.9;">
+                    Premium’a geç →
+                </a>
+
+                <div class="slider-note">
+                    Free: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.
+                </div>
             </div>
 
             <div id="loadingWrap" class="loadingWrap">
@@ -447,126 +467,31 @@
     </div>
 
     <script>
-                const premiumBadge = document.getElementById("premiumBadge");
-        const countHint = document.getElementById("countHint");
-        const countInput = document.getElementById("count");
-        let __isPremium = false;
-
-        countInput?.addEventListener("input", updateCountHint);
-        const logoutLink = document.getElementById("logoutLink");
-        const btn = document.getElementById("btn");
-        const spotifyStatus = document.getElementById("spotifyStatus");
-        const spotifyLink = document.getElementById("spotifyLink");
-
-        function updateCountHint() {
-            if (!countHint || !countInput) return;
-
-            const v = Number(countInput.value || 20);
-
-            if (!__isPremium && v > 40) {
-                countHint.textContent = "Free kullanıcılar için üst sınır 40 şarkı. Daha fazlası seçilse bile 40'a düşürülecek. Premium ile 200'e kadar.";
-                countHint.style.color = "rgba(255,255,255,.95)";
-            } else {
-                countHint.textContent = __isPremium
-                    ? "Premium: 200'e kadar şarkı üretebilirsin."
-                    : "Free: 40'a kadar şarkı üretebilirsin.";
-                countHint.style.color = "rgba(255,255,255,.75)";
+        // ---------- küçük toast ----------
+        function showToast(msg) {
+            let t = document.getElementById("toast");
+            if (!t) {
+                t = document.createElement("div");
+                t.id = "toast";
+                t.style.position = "fixed";
+                t.style.left = "50%";
+                t.style.bottom = "24px";
+                t.style.transform = "translateX(-50%)";
+                t.style.padding = "12px 14px";
+                t.style.borderRadius = "14px";
+                t.style.background = "rgba(0,0,0,.72)";
+                t.style.color = "#fff";
+                t.style.fontSize = "13px";
+                t.style.zIndex = "9999";
+                t.style.maxWidth = "92vw";
+                t.style.textAlign = "center";
+                document.body.appendChild(t);
             }
+            t.textContent = msg;
+            t.style.display = "block";
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => (t.style.display = "none"), 2600);
         }
-        countInput?.addEventListener("input", updateCountHint);
-
-
-        async function refreshSpotifyStatus() {
-            try {
-                const statusEl = document.getElementById("spotifyStatus");
-                const linkEl = document.getElementById("spotifyLink");
-                const logoutEl = document.getElementById("logoutLink");
-                const badgeEl = document.getElementById("premiumBadge");
-
-                console.log("UI elemanları:", {
-                    spotifyStatus: !!statusEl,
-                    spotifyLink: !!linkEl,
-                    logoutLink: !!logoutEl,
-                    premiumBadge: !!badgeEl
-                });
-
-                const r = await fetch("/api/me", { credentials: "include" });
-                const j = await r.json();
-
-                console.log("/api/me cevabı:", j);
-
-                if (!statusEl || !linkEl) return;
-
-                if (j && j.ok && j.me) {
-                    statusEl.textContent = "Spotify bağlı: " + (j.me.display_name || "OK");
-                    statusEl.style.background = "rgba(34,197,94,.20)";
-                    statusEl.style.color = "#fff";
-
-                    linkEl.textContent = "Hesap değiştir";
-                    linkEl.href = "/switch-account";
-                    linkEl.style.pointerEvents = "auto";
-                    linkEl.style.opacity = "1";
-
-                    if (logoutEl) logoutEl.style.display = "inline-block";
-
-                    const isPro = Boolean(j.premium);
-                    if (badgeEl) badgeEl.style.display = isPro ? "inline-block" : "none";
-                } else {
-                    statusEl.textContent = "Spotify bağlı değil";
-                    statusEl.style.background = "rgba(255,255,255,.08)";
-                    statusEl.style.color = "rgba(255,255,255,.72)";
-
-                    linkEl.textContent = "Spotify bağla";
-                    linkEl.href = "/login";
-                    linkEl.style.pointerEvents = "auto";
-                    linkEl.style.opacity = "1";
-
-                    if (logoutEl) logoutEl.style.display = "none";
-                    if (badgeEl) badgeEl.style.display = "none";
-                }
-            } catch (e) {
-                console.log("refreshSpotifyStatus hata:", e);
-            }
-        }
-
-                // fallback
-                if (logoutLink) logoutLink.style.display = "none";
-            
-        
-        refreshSpotifyStatus();
-        console.log("refreshSpotifyStatus çalıştı");
-        console.log("spotifyStatus?", !!spotifyStatus, "spotifyLink?", !!spotifyLink);
-
-        window.addEventListener("load", () => {
-            refreshSpotifyStatus();
-            updateCountHint();
-
-
-            document.getElementById("spotifyLink")?.addEventListener("click", () => {
-                console.log("spotifyLink clicked");
-            });
-        });
-
-        countInput?.addEventListener("input", updateCountHint);
-
-        // sayfa acilinca calissin
-        
-
-        const text = document.getElementById("text");
-        const out = document.getElementById("out");
-
-        const loadingWrap = document.getElementById("loadingWrap");
-        const loadingBar = document.getElementById("loadingBar");
-        const loadingTitle = document.getElementById("loadingTitle");
-        const loadingSub = document.getElementById("loadingSub");
-
-        const count = document.getElementById("count");
-        const countVal = document.getElementById("countVal");
-
-
-        count.addEventListener("input", () => {
-            countVal.textContent = String(count.value);
-        });
 
         function escapeHtml(s) {
             return String(s).replace(/[&<>"']/g, c => ({
@@ -574,6 +499,123 @@
             }[c]));
         }
 
+        // ---------- global state ----------
+        let __isPremium = false;
+        let lastPlaylist = null;
+
+        // ---------- DOM ----------
+        const btn = document.getElementById("btn");
+        const text = document.getElementById("text");
+        const out = document.getElementById("out");
+
+        const countInput = document.getElementById("count");
+        const countHint = document.getElementById("countHint");
+        const countVal = document.getElementById("countVal");
+        const rangeHint = document.getElementById("rangeHint");
+
+        const spotifyStatus = document.getElementById("spotifyStatus");
+        const spotifyLink = document.getElementById("spotifyLink");
+        const logoutLink = document.getElementById("logoutLink");
+        const planBadge = document.getElementById("planBadge");
+        const premiumBadge = document.getElementById("premiumBadge");
+        const goPremium = document.getElementById("goPremium");
+
+        const loadingWrap = document.getElementById("loadingWrap");
+        const loadingBar = document.getElementById("loadingBar");
+        const loadingTitle = document.getElementById("loadingTitle");
+        const loadingSub = document.getElementById("loadingSub");
+
+        // ---------- premium/free UI ----------
+        function applyPlanUI() {
+            // slider limit
+            const max = __isPremium ? 200 : 40;
+            if (countInput) {
+                countInput.max = String(max);
+                // eğer premium değilken 40 üstündeyse kırp
+                if (!__isPremium && Number(countInput.value || 20) > 40) countInput.value = "40";
+            }
+
+            if (rangeHint) rangeHint.textContent = __isPremium ? "20 - 200" : "20 - 40";
+
+            if (planBadge) planBadge.textContent = __isPremium ? "PREMIUM PLAN" : "FREE PLAN";
+            if (planBadge) planBadge.className = __isPremium ? "pill gold" : "pill";
+
+            if (premiumBadge) premiumBadge.style.display = __isPremium ? "inline-block" : "none";
+            if (goPremium) goPremium.style.display = __isPremium ? "none" : "inline-block";
+
+            updateCountHint();
+        }
+
+        function updateCountHint() {
+            if (!countHint || !countInput) return;
+            if (countVal) countVal.textContent = String(countInput.value);
+
+            const v = Number(countInput.value || 20);
+
+            if (__isPremium) {
+                countHint.innerHTML = "✅ <b>Premium:</b> 200 şarkıya kadar oluşturabilirsin.";
+                countHint.style.color = "rgba(255,255,255,.90)";
+                return;
+            }
+
+            // Free
+            if (v > 40) {
+                countHint.innerHTML =
+                    "⚠️ <b>Free plan limiti:</b> 40 şarkı. <b>" + v + "</b> seçtin ama <b>40</b> olarak kaydedilecek.";
+                countHint.style.color = "rgba(255,255,255,.95)";
+            } else {
+                countHint.innerHTML =
+                    "ℹ️ <b>Free:</b> 40 şarkıya kadar. Premium ile 200’e kadar.";
+                countHint.style.color = "rgba(255,255,255,.75)";
+            }
+        }
+
+        countInput?.addEventListener("input", updateCountHint);
+
+        // ---------- Spotify status ----------
+        async function refreshSpotifyStatus() {
+            try {
+                const r = await fetch("/api/me", { credentials: "include" });
+                const j = await r.json().catch(() => ({}));
+
+                if (j && j.ok && j.me) {
+                    spotifyStatus.textContent = "Spotify bağlı: " + (j.me.display_name || "OK");
+                    spotifyStatus.style.background = "rgba(34,197,94,.20)";
+                    spotifyStatus.style.color = "#fff";
+
+                    // hesap değiştir -> switch-account (logout + login'e yönlendiriyor olmalı)
+                    spotifyLink.textContent = "Hesap değiştir";
+                    spotifyLink.href = "/switch-account";
+                    spotifyLink.style.pointerEvents = "auto";
+                    spotifyLink.style.opacity = "1";
+
+                    if (logoutLink) logoutLink.style.display = "inline-block";
+
+                    __isPremium = Boolean(j.premium);
+                    applyPlanUI();
+                } else {
+                    spotifyStatus.textContent = "Spotify bağlı değil";
+                    spotifyStatus.style.background = "rgba(255,255,255,.08)";
+                    spotifyStatus.style.color = "rgba(255,255,255,.72)";
+
+                    spotifyLink.textContent = "Spotify bağla";
+                    spotifyLink.href = "/login";
+                    spotifyLink.style.pointerEvents = "auto";
+                    spotifyLink.style.opacity = "1";
+
+                    if (logoutLink) logoutLink.style.display = "none";
+
+                    __isPremium = false;
+                    applyPlanUI();
+                }
+            } catch (e) {
+                // sessiz fallback
+                __isPremium = false;
+                applyPlanUI();
+            }
+        }
+
+        // ---------- loading animation ----------
         let loadingTimer = null;
         let dotsTimer = null;
 
@@ -581,7 +623,6 @@
             loadingWrap.style.display = "block";
             loadingBar.style.width = "0%";
 
-            // --- Dots animation ---
             const baseTitle = "Playlist hazırlanıyor";
             let dots = 0;
             loadingTitle.textContent = baseTitle;
@@ -592,12 +633,7 @@
                 loadingTitle.textContent = baseTitle + ".".repeat(dots);
             }, 350);
 
-            const steps = [
-                "Vibe'i yakalıyorum",
-                "Şarkıları ayıklıyorum",
-                "Akışı kuruyorum",
-                "Son dokunuşlar"
-            ];
+            const steps = ["Vibe'i yakalıyorum", "Şarkıları ayıklıyorum", "Akışı kuruyorum", "Son dokunuşlar"];
             let stepIdx = 0;
             loadingSub.textContent = steps[0];
 
@@ -607,7 +643,6 @@
             if (loadingTimer) clearInterval(loadingTimer);
             loadingTimer = setInterval(() => {
                 const t = (Date.now() - t0) / 1000;
-
                 const capFast = 88;
                 const capSlow = 94;
 
@@ -632,6 +667,7 @@
         function finishLoading() {
             if (loadingTimer) clearInterval(loadingTimer);
             if (dotsTimer) clearInterval(dotsTimer);
+            loadingTimer = null; dotsTimer = null;
 
             loadingTitle.textContent = "Tamamlandı";
             loadingSub.textContent = "Hazır.";
@@ -643,24 +679,12 @@
             }, 350);
         }
 
-        function finishLoading() {
-            if (loadingTimer) clearInterval(loadingTimer);
-            loadingTimer = null;
-            loadingBar.style.width = "100%";
-            setTimeout(() => {
-                loadingWrap.style.display = "none";
-                loadingBar.style.width = "0%";
-            }, 350);
-        }
-
-
-        async function addToSpotify(lastResult) {
-            // Bu endpoint sende daha once eklediysen vardir:
-            // POST /api/spotify/save { title, description, tracks:[{artist,song}] }
+        // ---------- Spotify save ----------
+        async function addToSpotify(data) {
             const payload = {
-                title: lastResult.title,
-                description: lastResult.description,
-                tracks: lastResult.tracks
+                title: data.title,
+                description: data.description,
+                tracks: data.tracks
             };
 
             const resp = await fetch("/api/spotify/save", {
@@ -670,18 +694,20 @@
                 body: JSON.stringify(payload)
             });
 
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(data.error || "Spotify kaydetme başarısız");
-            return data;
+            const j = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(j.error || "Spotify kaydetme başarısız");
+            return j;
         }
 
-        let lastPlaylist = null;
-
+        // ---------- generate ----------
         btn.onclick = async () => {
+            const requested = Number(countInput?.value || 20);
+            if (!__isPremium && requested > 40) {
+                showToast(`Free plan: ${requested} seçtin → 40 şarkıya düşürülecek. Premium ile 200'e çık.`);
+            }
+
             if (btn.dataset.loading === "1") return;
             btn.dataset.loading = "1";
-
-          
 
             out.innerHTML = "";
             out.className = "";
@@ -691,7 +717,7 @@
             try {
                 const payload = {
                     text: text.value,
-                    count: Number(count.value) // server destekliyorsa kullanir
+                    count: Number(countInput?.value || 20)
                 };
 
                 const resp = await fetch("/api/generate", {
@@ -729,13 +755,12 @@
                 </div>
 
                 <details>
-                  <summary style="margin-top:12px; cursor:pointer;">JSON gor</summary>
+                  <summary style="margin-top:12px; cursor:pointer;">JSON gör</summary>
                   <pre id="jsonBox">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
                 </details>
               </div>
             `;
 
-                // Save button (Spotify bagli degilse /login'e gonder)
                 const saveBtn = document.getElementById("saveBtn");
                 const copyBtn = document.getElementById("copyBtn");
                 const jsonBox = document.getElementById("jsonBox");
@@ -744,14 +769,15 @@
                     saveBtn.disabled = true;
                     saveBtn.textContent = "Kaydediliyor...";
                     try {
-                        // once bagli mi kontrol
-                        const me = await fetch("/api/me").then(r => r.ok ? r.json() : null);
+                        const me = await fetch("/api/me", { credentials: "include" })
+                            .then(r => r.ok ? r.json() : null);
+
                         if (!me || !me.ok) {
                             window.location.href = "/login";
                             return;
                         }
 
-                        const result = await addToSpotify(lastPlaylist);
+                        await addToSpotify(lastPlaylist);
                         saveBtn.textContent = "Eklendi!";
                         saveBtn.style.background = "rgba(34,197,94,.20)";
                     } catch (e) {
@@ -767,7 +793,6 @@
                         copyBtn.textContent = "Kopyalandı!";
                         setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
                     } catch (e) {
-                        // fallback
                         const r = document.createRange();
                         r.selectNodeContents(jsonBox);
                         const sel = window.getSelection();
@@ -784,51 +809,18 @@
                 out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
             } finally {
                 finishLoading();
-                btn.dataset.loading = "0";
-
                 btn.disabled = false;
                 btn.dataset.loading = "0";
-                    
             }
         };
 
-        // sayfa acilinca spotify durumu
-        document.getElementById("spotifyLink")?.addEventListener("click", () => {
-            console.log("spotifyLink clicked");
+        // ---------- init ----------
+        window.addEventListener("load", async () => {
+            // default free görünüm
+            __isPremium = false;
+            applyPlanUI();
+            await refreshSpotifyStatus();
         });
-        (async function refreshSpotifyUI() {
-            try {
-                const r = await fetch("/api/me", { credentials: "include" });
-                const j = await r.json();
-
-                const statusEl = document.getElementById("spotifyStatus");
-                const linkEl = document.getElementById("spotifyLink");
-                if (!statusEl || !linkEl) return;
-
-                if (j && j.ok && j.me) {
-                    statusEl.textContent = "Spotify bağli: " + (j.me.display_name || "OK");
-                    statusEl.style.background = "rgba(34,197,94,.20)";
-                    statusEl.style.color = "#fff";
-
-                    linkEl.textContent = "Spotify bağlı (değiştir)";
-                    linkEl.href = "/login";
-                    linkEl.style.pointerEvents = "auto";
-                    linkEl.style.opacity = "1";
-                } else {
-                    statusEl.textContent = "Spotify bağlı değil";
-                    statusEl.style.background = "rgba(255,255,255,.08)";
-                    statusEl.style.color = "rgba(255,255,255,.72)";
-
-                    linkEl.textContent = "Spotify bağla";
-                    linkEl.href = "/login";
-                    linkEl.style.pointerEvents = "auto";
-                    linkEl.style.opacity = "1";
-                }
-            } catch (e) {
-                // no-op
-            }
-        })();
-
     </script>
 </body>
 </html>
