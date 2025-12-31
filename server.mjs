@@ -217,7 +217,10 @@ app.get("/login", (req, res) => {
             return res.status(500).send("Sunucu ayarý eksik: Spotify giriþ bilgileri tanýmlý deðil (CLIENT_ID / REDIRECT_URI).");
         }
 
+        const force = String(req.query.force || "") === "1";
+
         const params = querystring.stringify({
+            show_dialog: force ? "true" : "false",
             response_type: "code",
             client_id: clientId,
             scope,
@@ -304,6 +307,17 @@ function requireSpotifyToken(req, res) {
     return token;
 }
 app.get("/logout", (req, res) => {
+    app.get("/switch-account", (req, res) => {
+        try {
+            clearCookie(res, req, "spotify_access_token");
+            clearCookie(res, req, "spotify_state");
+            return res.redirect(302, "/login?force=1");
+        } catch (e) {
+            console.error("switch-account failed:", e);
+            return res.redirect(302, "/login?force=1");
+        }
+    });
+
     try {
         clearCookie(res, req, "spotify_access_token");
         clearCookie(res, req, "spotify_state");
@@ -313,6 +327,20 @@ app.get("/logout", (req, res) => {
         return res.redirect("/");
     }
 });
+app.get("/switch-account", (req, res) => {
+    try {
+        // Bizdeki Spotify token/cookie’leri temizle
+        clearCookie(res, req, "spotify_access_token");
+        clearCookie(res, req, "spotify_state");
+
+        // Sonra direkt Spotify login baþlat
+        return res.redirect(302, "/login?force=1");
+    } catch (e) {
+        console.error("switch-account failed:", e);
+        return res.redirect(302, "/login?force=1");
+    }
+});
+
 app.get("/debug/cookies", (req, res) => {
     res.json({
         hostname: req.hostname,
