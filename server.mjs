@@ -302,54 +302,127 @@ app.get("/callback", async (req, res) => {
         }
         clearCookie(res, req, "spotify_state");
 
-        setCookie(res, "spotify_access_token", data.access_token, (data.expires_in || 3600) * 1000);
+        const expiresIn = Number(data.expires_in || 3600);
+        const expiresAt = Date.now() + expiresIn * 1000;
+
+        setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
+        if (data.refresh_token) {
+            setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
+        }
+        setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
         return res.redirect("/");
     } catch (err) {
         console.error(err);
         return res.status(500).send("Callback failed");
     }
 });
-function requireSpotifyToken(req, res) {
+async function refreshSpotifyAccessToken(req, res) {
+    const refreshToken = getCookie(req, "spotify_refresh_token");
+    if (!refreshToken) return null;
+
+    const clientId = String(process.env.SPOTIFY_CLIENT_ID || "").trim();
+    const clientSecret = String(process.env.SPOTIFY_CLIENT_SECRET || "").trim();
+    if (!clientId || !clientSecret) return null;
+
+    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+
+    const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken
+    });
+
+    const r = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+            Authorization: `Basic ${basic}`,
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body
+    });
+
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.access_token) {
+        console.error("refresh token failed:", j);
+        clearCookie(res, req, "spotify_access_token");
+        clearCookie(res, req, "spotify_refresh_token");
+        clearCookie(res, req, "spotify_expires_at");
+        return null;
+    }
+
+    const expiresIn = Number(j.expires_in || 3600);
+    const expiresAt = Date.now() + expiresIn * 1000;
+
+    setCookie(res, "spotify_access_token", j.access_token, expiresIn * 1000);
+
+    // Spotify bazen refresh_token dönmez; dönse bile güncellemek zarar vermez
+    if (j.refresh_token) {
+        setCookie(res, "spotify_refresh_token", j.refresh_token, 365 * 24 * 60 * 60 * 1000);
+    }
+
+    setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
+
+    return j.access_token;
+}
+
+async function getValidSpotifyToken(req, res) {
     const token = getCookie(req, "spotify_access_token");
+    const exp = Number(getCookie(req, "spotify_expires_at") || 0);
+
+    // token varsa ve bitmeye 60sn’den fazla varsa OK
+    if (token && exp && (exp - Date.now() > 60_000)) return token;
+
+    // token yok / bitiyor -> refresh dene
+    const refreshed = await refreshSpotifyAccessToken(req, res);
+    return refreshed;
+}
+
+// Eskisini bununla deðiþtir (aþaðýda kullanacaðýz)
+async function requireSpotifyToken(req, res) {
+    const token = await getValidSpotifyToken(req, res);
     if (!token) {
-        res.status(401).json({ error: "Not logged in to Spotify. Go to /login" });
+        res.status(401).json({ error: "Spotify oturumu yok veya süresi doldu. /login" });
         return null;
     }
     return token;
 }
+
     // Çýkýþ yap: cookie temizle, ana sayfaya dön
-    app.get("/logout", (req, res) => {
-        try {
-            clearCookie(res, req, "spotify_access_token");
-            clearCookie(res, req, "spotify_state");
-            return res.redirect(302, "/");
-        } catch (e) {
-            console.error("logout failed:", e);
-            return res.redirect(302, "/");
-        }
-    });
+app.get("/logout", (req, res) => {
+    try {
+        clearCookie(res, req, "spotify_access_token");
+        clearCookie(res, req, "spotify_refresh_token");
+        clearCookie(res, req, "spotify_expires_at");
+        clearCookie(res, req, "spotify_state");
+        return res.redirect(302, "/");
+    } catch (e) {
+        console.error("logout failed:", e);
+        return res.redirect(302, "/");
+    }
+});
 
     // Hesap deðiþtir: cookie temizle, Spotify login'e force ile git (show_dialog=true)
-    app.get("/switch-account", (req, res) => {
-        try {
-            clearCookie(res, req, "spotify_access_token");
-            clearCookie(res, req, "spotify_state");
-            return res.redirect(302, "/login?force=1");
-        } catch (e) {
-            console.error("switch-account failed:", e);
-            return res.redirect(302, "/login?force=1");
-        }
+app.get("/switch-account", (req, res) => {
+    try {
+        clearCookie(res, req, "spotify_access_token");
+        clearCookie(res, req, "spotify_refresh_token");
+        clearCookie(res, req, "spotify_expires_at");
+        clearCookie(res, req, "spotify_state");
+        return res.redirect(302, "/login?force=1");
+    } catch (e) {
+        console.error("switch-account failed:", e);
+        return res.redirect(302, "/login?force=1");
+    }
+});
+app.get("/debug/cookies", (req, res) => {
+    res.json({
+        hostname: req.hostname,
+        cookieHeader: req.headers.cookie || "",
+        accessTokenPresent: Boolean(getCookie(req, "spotify_access_token")),
+        refreshTokenPresent: Boolean(getCookie(req, "spotify_refresh_token")),
+        expiresAt: Number(getCookie(req, "spotify_expires_at") || 0),
+        statePresent: Boolean(getCookie(req, "spotify_state"))
     });
-
-    app.get("/debug/cookies", (req, res) => {
-        res.json({
-            hostname: req.hostname,
-            cookieHeader: req.headers.cookie || "",
-            accessTokenPresent: Boolean(getCookie(req, "spotify_access_token")),
-            statePresent: Boolean(getCookie(req, "spotify_state"))
-        });
-    });
-
+});
 // Admin: hediye kodu üret
 app.post("/api/admin/codes/create", (req, res) => {
     try {
@@ -384,7 +457,7 @@ app.post("/api/redeem", async (req, res) => {
 
 app.get("/spotify/top", async (req, res) => {
     try {
-        const token = requireSpotifyToken(req, res);
+        const token = await requireSpotifyToken(req, res);
         if (!token) return;
 
         const timeRange = String(req.query.time_range || "short_term");
@@ -416,7 +489,7 @@ app.get("/spotify/top", async (req, res) => {
 
 app.get("/api/me", async (req, res) => {
     try {
-        const token = getCookie(req, "spotify_access_token");
+        const token = await getValidSpotifyToken(req, res);
         if (!token) return res.status(200).json({ ok: false });
 
         const r = await fetch("https://api.spotify.com/v1/me", {
@@ -885,7 +958,7 @@ app.post("/spotify/save", saveSpotifyPlaylist);
 app.post("/api/spotify/save", saveSpotifyPlaylist);
 
 function requireAdmin(req, res) {
-    const token = String(req.query.token || req.headers["x-admin-token"] || "");
+    const token = await String(req.query.token || req.headers["x-admin-token"] || "");
     if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
         res.status(401).send("Unauthorized");
         return false;
