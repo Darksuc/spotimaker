@@ -287,6 +287,8 @@ app.get("/callback", async (req, res) => {
             const me = await meRes.json();
             if (me?.id) {
                 upsertUser({ spotify_id: me.id, display_name: me.display_name });
+                console.log("UPSERT_OK", me.id);
+
                 console.log("LOGIN_EVENT", {
                     spotify_id: me.id,
                     display_name: me.display_name || null,

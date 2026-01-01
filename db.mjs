@@ -1,7 +1,10 @@
 import fs from "fs";
 import path from "path";
 
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+const DATA_DIR =
+    process.env.DATA_DIR ||
+    process.env.RENDER_DISK_PATH ||                // Render persistent disk verirsen
+    path.join(process.env.TMPDIR || "/tmp", "spotimaker-data"); // free’de bile writable
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 const EVENTS_PATH = path.join(DATA_DIR, "events.json");
 const CODES_PATH = path.join(DATA_DIR, "codes.json");
@@ -18,9 +21,14 @@ function readJson(p, fallback) {
 }
 
 function writeJson(p, obj) {
-    const tmp = p + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf-8");
-    fs.renameSync(tmp, p);
+    try {
+        const tmp = p + ".tmp";
+        fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf-8");
+        fs.renameSync(tmp, p);
+    } catch (e) {
+        console.error("writeJson failed:", p, e?.message || e);
+        throw e;
+    }
 }
 
 // ---------------- Users & Events ----------------
