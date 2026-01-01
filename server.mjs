@@ -349,14 +349,6 @@ function requireSpotifyToken(req, res) {
             statePresent: Boolean(getCookie(req, "spotify_state"))
         });
     });
-function requireAdmin(req, res) {
-    const token = String(req.query.token || req.headers["x-admin-token"] || "");
-    if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
-        res.status(401).json({ error: "Unauthorized" });
-        return false;
-    }
-    return true;
-}
 
 // Admin: hediye kodu üret
 app.post("/api/admin/codes/create", (req, res) => {
