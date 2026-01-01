@@ -522,6 +522,63 @@ app.get("/api/me", async (req, res) => {
                 spotify_error: data
             });
         }
+        app.get("/api/spotify/status", async (req, res) => {
+            try {
+                const token = await getValidSpotifyToken(req, res);
+
+                if (!token) {
+                    return res.json({
+                        connected: false,
+                        reason: "no_token"
+                    });
+                }
+
+                const r = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (r.status === 401) {
+                    return res.json({
+                        connected: false,
+                        reason: "expired_token"
+                    });
+                }
+
+                if (r.status === 403) {
+                    return res.json({
+                        connected: false,
+                        reason: "insufficient_scope"
+                    });
+                }
+
+                if (!r.ok) {
+                    return res.json({
+                        connected: false,
+                        reason: "spotify_error",
+                        status: r.status
+                    });
+                }
+
+                const me = await r.json();
+
+                return res.json({
+                    connected: true,
+                    user: {
+                        id: me.id,
+                        name: me.display_name
+                    },
+                    premium: isPremium(me.id)
+                });
+
+            } catch (e) {
+                return res.json({
+                    connected: false,
+                    reason: "exception",
+                    message: String(e.message || e)
+                });
+            }
+        });
+
 
         const premium = isPremium(data.id);
 

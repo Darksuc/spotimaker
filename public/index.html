@@ -576,12 +576,14 @@
         // ---------- Spotify status ----------
         async function refreshSpotifyStatus() {
             try {
-                const r = await fetch("/api/me", { credentials: "include" });
-                const j = await r.json().catch(() => ({}));
-                const statusEl = spotifyStatus;   // ✅ senin const'ların adı bu
-                const linkEl = spotifyLink;
-                const logoutEl = logoutLink;
+                const r = await fetch("/api/spotify/status");
+                const s = await r.json();
 
+                if (s.connected) {
+                    showConnected(s.user.name, s.premium);
+                } else {
+                    showConnectButton(s.reason);
+                }
 
                 if (!spotifyStatus || !spotifyLink) return;
 
