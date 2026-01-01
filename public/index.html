@@ -1,161 +1,592 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Spotimaker</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <style>
-        body {
-            margin: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #0b0b0e;
-            color: #fff;
+        :root {
+            --bg: #0b0b0f;
+            --card: #12121a;
+            --muted: rgba(255,255,255,.72);
+            --text: #fff;
+            --line: rgba(255,255,255,.12);
+            --accent: #22c55e;
+            --accent2: #3b82f6;
+            --danger: #ef4444;
+            --gold: rgba(234,179,8,.25);
         }
 
-        header {
-            padding: 16px;
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+            background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.18), transparent 60%), radial-gradient(1000px 700px at 80% 10%, rgba(59,130,246,.14), transparent 60%), var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 28px 18px 60px;
+        }
+
+        .topbar {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,.08);
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(18,18,26,.70);
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 50;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 260px;
+        }
+
+        .logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            background: linear-gradient(135deg, rgba(34,197,94,.18), rgba(59,130,246,.14));
+            flex: 0 0 auto;
+        }
+
+        .brand-name {
+            font-weight: 900;
+            letter-spacing: .2px;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .brand-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin: 2px 0 0;
+        }
+
+        .badges {
+            margin-top: 6px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
         .spotify-badge {
+            display: inline-block;
             padding: 6px 10px;
+            font-size: 12px;
             border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            border: 1px solid var(--line);
+            color: var(--muted);
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.10);
+            color: rgba(255,255,255,.85);
+        }
+
+            .pill.gold {
+                background: var(--gold);
+                color: #fff;
+                border-color: rgba(234,179,8,.35);
+            }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .navlink {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 10px 10px;
+            border-radius: 12px;
+        }
+
+            .navlink:hover {
+                background: rgba(255,255,255,.06);
+                color: #fff;
+            }
+
+        .navbtn {
+            color: #0b0b0f;
+            background: #fff;
+            text-decoration: none;
+            padding: 10px 12px;
+            border-radius: 12px;
+            font-weight: 900;
+            border: 1px solid rgba(255,255,255,.2);
+        }
+
+            .navbtn:hover {
+                opacity: .93;
+            }
+
+        .main-card {
+            margin: 22px auto 0;
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: rgba(18,18,26,.80);
+            backdrop-filter: blur(14px);
+        }
+
+        .hero {
+            display: flex;
+            gap: 18px;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .h1 {
+            margin: 0 0 6px 0;
+            font-size: 28px;
+            letter-spacing: -.4px;
+        }
+
+        .p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+            max-width: 62ch;
+        }
+
+        .hint {
+            color: var(--muted);
+            margin-top: 10px;
             font-size: 13px;
         }
 
-        .actions a {
-            margin-left: 12px;
-            color: #22c55e;
-            text-decoration: none;
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.04);
+            color: #fff;
+            outline: none;
+            resize: vertical;
+        }
+
+            textarea:focus {
+                border-color: rgba(59,130,246,.45);
+                box-shadow: 0 0 0 4px rgba(59,130,246,.10);
+            }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .primary-btn {
+            flex: 1 1 220px;
+            padding: 14px 18px;
+            font-size: 18px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #22c55e, #3b82f6);
+            color: #0b0b0f;
+            border: none;
+            font-weight: 900;
             cursor: pointer;
         }
 
-            .actions a.hidden {
-                display: none;
+            .primary-btn:hover {
+                opacity: .95;
             }
 
-        .container {
-            padding: 24px;
-            max-width: 700px;
-            margin: auto;
+            .primary-btn:disabled {
+                opacity: .6;
+                cursor: not-allowed;
+            }
+
+        .ghost-btn {
+            flex: 0 0 auto;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 800;
+            cursor: pointer;
         }
 
-        .plan {
-            margin-bottom: 16px;
-            font-size: 14px;
-            opacity: .9;
+            .ghost-btn:hover {
+                background: rgba(255,255,255,.09);
+            }
+
+        .slider-wrap {
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
         }
 
-        .premium-badge {
-            display: none;
-            background: rgba(234,179,8,.25);
-            padding: 6px 10px;
-            border-radius: 8px;
-            margin-left: 8px;
+        .slider-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .slider-note {
             font-size: 12px;
+            color: rgba(255,255,255,.55);
+            line-height: 1.35;
         }
 
         input[type="range"] {
             width: 100%;
+            max-width: 640px;
         }
 
-        .hint {
-            margin-top: 6px;
-            font-size: 13px;
-            opacity: .7;
+        .loadingWrap {
+            display: none;
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
         }
 
-        button {
-            margin-top: 16px;
-            padding: 12px;
+        .loadingTitle {
+            font-weight: 900;
+            margin: 0 0 10px 0;
+        }
+
+        .barOuter {
             width: 100%;
-            border-radius: 8px;
-            border: none;
-            background: #22c55e;
-            color: #000;
-            font-size: 16px;
-            cursor: pointer;
+            max-width: 680px;
+            height: 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255,255,255,.02);
+        }
+
+        .barInner {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #22c55e, #3b82f6);
+            transition: width .18s linear;
+        }
+
+        .loadingSub {
+            margin-top: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,.6);
+        }
+
+        .card {
+            margin-top: 16px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
+        }
+
+        .cardTitle {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: -.2px;
+        }
+
+        .cardDesc {
+            margin: 8px 0 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .tags {
+            margin-top: 10px;
+            color: rgba(255,255,255,.65);
+            font-size: 13px;
+        }
+
+        ol {
+            margin: 10px 0 0 18px;
+        }
+
+        li {
+            margin: 4px 0;
+            color: rgba(255,255,255,.92);
+        }
+
+        details {
+            margin-top: 12px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            background: rgba(255,255,255,.04);
+            border: 1px solid var(--line);
+            padding: 12px;
+            border-radius: 14px;
+            overflow: auto;
+            color: rgba(255,255,255,.9);
+        }
+
+        .error {
+            border-color: rgba(239,68,68,.35);
+            background: rgba(239,68,68,.06);
+        }
+
+        @media (max-width:560px) {
+            .h1 {
+                font-size: 24px;
+            }
+
+            .topbar {
+                padding: 12px;
+            }
+
+            .main-card {
+                padding: 18px;
+            }
+
+            .primary-btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
 <body>
+    <div class="page">
+        <header class="topbar">
+            <div class="brand">
+                <div class="logo" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                        <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </div>
 
-    <header>
-        <div id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
+                <div>
+                    <div class="brand-name">Spotimaker</div>
+                    <div class="brand-sub">Ruh haline göre playlist.</div>
 
-        <div class="actions">
-            <a id="spotifyLink" href="/login">Spotify bağla</a>
-            <a id="logoutLink" href="/logout" class="hidden">Çıkış yap</a>
-        </div>
-    </header>
+                    <div class="badges">
+                        <div id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
+                        <span id="planBadge" class="pill">FREE PLAN</span>
+                        <span id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
+                    </div>
+                </div>
+            </div>
 
-    <div class="container">
+            <nav class="nav">
+                <a href="/premium.html" class="navlink">Premium</a>
+                <a id="spotifyLink" href="/login" class="navbtn" target="_self">Spotify bağla</a>
+                <a id="logoutLink" href="/logout" class="navlink" style="display:none;">Çıkış yap</a>
+            </nav>
+        </header>
 
-        <div class="plan">
-            Plan: <strong id="planText">FREE</strong>
-            <span id="premiumBadge" class="premium-badge">PREMIUM</span>
-        </div>
+        <main class="main-card">
+            <div class="hero">
+                <div>
+                    <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
+                    <p class="p">Mood + ortam + his yeter. İstersen playlisti Spotify hesabına tek tıkla eklersin.</p>
+                    <div class="hint">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
+                </div>
+            </div>
 
-        <label>
-            Şarkı sayısı:
-            <input id="countInput" type="range" min="20" max="40" step="5" value="40" />
-        </label>
+            <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
 
-        <div id="countHint" class="hint"></div>
+            <div class="row">
+                <button id="btn" class="primary-btn">Playlist oluştur</button>
+            </div>
 
-        <button id="generateBtn">Playlist oluştur</button>
+            <div class="slider-wrap">
+                <div class="slider-top">
+                    <div style="display:flex; gap:8px; align-items:baseline;">
+                        <span style="color:var(--muted); font-size:13px;">Şarkı sayısı:</span>
+                        <b><span id="countVal">20</span></b>
+                    </div>
+                    <div id="rangeHint" style="color:rgba(255,255,255,.55); font-size:12px;">20 - 40</div>
+                </div>
+
+                <input id="count" type="range" min="20" max="40" step="10" value="20" />
+                <div id="countHint" style="margin-top:8px; opacity:.85; font-size:12px;"></div>
+
+                <a href="/premium.html" id="goPremium" style="display:inline-block; margin-top:6px; font-size:12px; opacity:.9;">
+                    Premium’a geç →
+                </a>
+
+                <div class="slider-note">
+                    Free: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.
+                </div>
+            </div>
+
+            <div id="loadingWrap" class="loadingWrap">
+                <div class="loadingTitle" id="loadingTitle">Playlist hazırlanıyor...</div>
+                <div class="barOuter"><div id="loadingBar" class="barInner"></div></div>
+                <div class="loadingSub" id="loadingSub">Bu genelde birkaç saniye sürer.</div>
+            </div>
+
+            <div id="out"></div>
+        </main>
     </div>
 
     <script>
+        // ---------- küçük toast ----------
+        function showToast(msg) {
+            let t = document.getElementById("toast");
+            if (!t) {
+                t = document.createElement("div");
+                t.id = "toast";
+                t.style.position = "fixed";
+                t.style.left = "50%";
+                t.style.bottom = "24px";
+                t.style.transform = "translateX(-50%)";
+                t.style.padding = "12px 14px";
+                t.style.borderRadius = "14px";
+                t.style.background = "rgba(0,0,0,.72)";
+                t.style.color = "#fff";
+                t.style.fontSize = "13px";
+                t.style.zIndex = "9999";
+                t.style.maxWidth = "92vw";
+                t.style.textAlign = "center";
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            t.style.display = "block";
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => (t.style.display = "none"), 2600);
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+            }[c]));
+        }
+
+        // ---------- global state ----------
+        let __isPremium = false;
+        let lastPlaylist = null;
+
+        // ---------- DOM ----------
+        const btn = document.getElementById("btn");
+        const text = document.getElementById("text");
+        const out = document.getElementById("out");
+
+        const countInput = document.getElementById("count");
+        const countHint = document.getElementById("countHint");
+        const countVal = document.getElementById("countVal");
+        const rangeHint = document.getElementById("rangeHint");
+
         const spotifyStatus = document.getElementById("spotifyStatus");
         const spotifyLink = document.getElementById("spotifyLink");
         const logoutLink = document.getElementById("logoutLink");
-
-        const planText = document.getElementById("planText");
+        const planBadge = document.getElementById("planBadge");
         const premiumBadge = document.getElementById("premiumBadge");
+        const goPremium = document.getElementById("goPremium");
 
-        const countInput = document.getElementById("countInput");
-        const countHint = document.getElementById("countHint");
-        const generateBtn = document.getElementById("generateBtn");
+        const loadingWrap = document.getElementById("loadingWrap");
+        const loadingBar = document.getElementById("loadingBar");
+        const loadingTitle = document.getElementById("loadingTitle");
+        const loadingSub = document.getElementById("loadingSub");
 
-        let __isPremium = false;
-
+        // ---------- premium/free UI ----------
         function applyPlanUI() {
-            if (__isPremium) {
-                planText.textContent = "PREMIUM";
-                premiumBadge.style.display = "inline-block";
-                countInput.max = 200;
-                if (Number(countInput.value) < 40) countInput.value = 40;
-            } else {
-                planText.textContent = "FREE";
-                premiumBadge.style.display = "none";
-                countInput.max = 40;
-                if (Number(countInput.value) > 40) countInput.value = 40;
+            // slider limit
+            const max = __isPremium ? 200 : 40;
+            if (countInput) {
+                countInput.max = String(max);
+                // eğer premium değilken 40 üstündeyse kırp
+                if (!__isPremium && Number(countInput.value || 20) > 40) countInput.value = "40";
             }
+
+            if (rangeHint) rangeHint.textContent = __isPremium ? "20 - 200" : "20 - 40";
+
+            if (planBadge) planBadge.textContent = __isPremium ? "PREMIUM PLAN" : "FREE PLAN";
+            if (planBadge) planBadge.className = __isPremium ? "pill gold" : "pill";
+
+            if (premiumBadge) premiumBadge.style.display = __isPremium ? "inline-block" : "none";
+            if (goPremium) goPremium.style.display = __isPremium ? "none" : "inline-block";
+
             updateCountHint();
         }
 
         function updateCountHint() {
+            if (!countHint || !countInput) return;
+            if (countVal) countVal.textContent = String(countInput.value);
+
+            const v = Number(countInput.value || 20);
+
             if (__isPremium) {
-                countHint.textContent = `${countInput.value} şarkı seçilecek (Premium)`;
+                countHint.innerHTML = "✅ <b>Premium:</b> 200 şarkıya kadar oluşturabilirsin.";
+                countHint.style.color = "rgba(255,255,255,.90)";
+                return;
+            }
+
+            // Free
+            if (v > 40) {
+                countHint.innerHTML =
+                    "⚠️ <b>Free plan limiti:</b> 40 şarkı. <b>" + v + "</b> seçtin ama <b>40</b> olarak kaydedilecek.";
+                countHint.style.color = "rgba(255,255,255,.95)";
             } else {
-                countHint.textContent = `${countInput.value} şarkı seçilecek (Free limit)`;
+                countHint.innerHTML =
+                    "ℹ️ <b>Free:</b> 40 şarkıya kadar. Premium ile 200’e kadar.";
+                countHint.style.color = "rgba(255,255,255,.75)";
             }
         }
 
-        countInput.addEventListener("input", updateCountHint);
+        countInput?.addEventListener("input", updateCountHint);
 
+        // ---------- Spotify status ----------
+        // ---------- Spotify status ----------
         async function refreshSpotifyStatus() {
             try {
                 const r = await fetch("/api/me", { credentials: "include" });
-                const j = await r.json();
+                const j = await r.json().catch(() => ({}));
+                const statusEl = spotifyStatus;   // ✅ senin const'ların adı bu
+                const linkEl = spotifyLink;
+                const logoutEl = logoutLink;
+
+
+                if (!spotifyStatus || !spotifyLink) return;
 
                 if (j && j.ok && j.me) {
+                    // ✅ burası kritik: global state’i window yerine kendi değişkenine yaz
                     __isPremium = Boolean(j.premium);
 
                     spotifyStatus.textContent = "Spotify bağlı: " + (j.me.display_name || "OK");
@@ -164,9 +595,12 @@
 
                     spotifyLink.textContent = "Hesap değiştir";
                     spotifyLink.href = "/switch-account";
+                    spotifyLink.style.pointerEvents = "auto";
+                    spotifyLink.style.opacity = "1";
 
-                    logoutLink.classList.remove("hidden");
+                    if (logoutLink) logoutLink.style.display = "inline-block";
 
+                    // plan/premium görünümü + slider limitleri
                     applyPlanUI();
                 } else {
                     __isPremium = false;
@@ -177,25 +611,227 @@
 
                     spotifyLink.textContent = "Spotify bağla";
                     spotifyLink.href = "/login";
+                    spotifyLink.style.pointerEvents = "auto";
+                    spotifyLink.style.opacity = "1";
 
-                    logoutLink.classList.add("hidden");
+                    if (logoutLink) logoutLink.style.display = "none";
 
                     applyPlanUI();
                 }
             } catch (e) {
-                console.error("refreshSpotifyStatus error", e);
+                console.warn("refreshSpotifyStatus hata:", e);
+                if (logoutLink) logoutLink.style.display = "none";
             }
         }
 
-        generateBtn.addEventListener("click", () => {
-            alert("Playlist oluşturma burada devam edecek.");
-        });
+        // ---------- loading animation ----------
+        let loadingTimer = null;
+        let dotsTimer = null;
 
-        window.addEventListener("load", () => {
+        function startLoading() {
+            loadingWrap.style.display = "block";
+            loadingBar.style.width = "0%";
+
+            const baseTitle = "Playlist hazırlanıyor";
+            let dots = 0;
+            loadingTitle.textContent = baseTitle;
+
+            if (dotsTimer) clearInterval(dotsTimer);
+            dotsTimer = setInterval(() => {
+                dots = (dots + 1) % 4;
+                loadingTitle.textContent = baseTitle + ".".repeat(dots);
+            }, 350);
+
+            const steps = ["Vibe'i yakalıyorum", "Şarkıları ayıklıyorum", "Akışı kuruyorum", "Son dokunuşlar"];
+            let stepIdx = 0;
+            loadingSub.textContent = steps[0];
+
+            let p = 0;
+            const t0 = Date.now();
+
+            if (loadingTimer) clearInterval(loadingTimer);
+            loadingTimer = setInterval(() => {
+                const t = (Date.now() - t0) / 1000;
+                const capFast = 88;
+                const capSlow = 94;
+
+                if (t <= 6) {
+                    const x = t / 6;
+                    p = capFast * (1 - (1 - x) * (1 - x));
+                } else {
+                    p = capFast + (capSlow - capFast) * (1 - Math.exp(-(t - 6) / 6));
+                }
+
+                p = Math.min(capSlow, p);
+                loadingBar.style.width = Math.round(p) + "%";
+
+                const nextStep = Math.min(steps.length - 1, Math.floor(t / 2));
+                if (nextStep !== stepIdx) {
+                    stepIdx = nextStep;
+                    loadingSub.textContent = steps[stepIdx];
+                }
+            }, 120);
+        }
+
+        function finishLoading() {
+            if (loadingTimer) clearInterval(loadingTimer);
+            if (dotsTimer) clearInterval(dotsTimer);
+            loadingTimer = null; dotsTimer = null;
+
+            loadingTitle.textContent = "Tamamlandı";
+            loadingSub.textContent = "Hazır.";
+            loadingBar.style.width = "100%";
+
+            setTimeout(() => {
+                loadingWrap.style.display = "none";
+                loadingBar.style.width = "0%";
+            }, 350);
+        }
+
+        // ---------- Spotify save ----------
+        async function addToSpotify(data) {
+            const payload = {
+                title: data.title,
+                description: data.description,
+                tracks: data.tracks
+            };
+
+            const resp = await fetch("/api/spotify/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(payload)
+            });
+
+            const j = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(j.error || "Spotify kaydetme başarısız");
+            return j;
+        }
+
+        // ---------- generate ----------
+        btn.onclick = async () => {
+            const requested = Number(countInput?.value || 20);
+            if (!__isPremium && requested > 40) {
+                showToast(`Free plan: ${requested} seçtin → 40 şarkıya düşürülecek. Premium ile 200'e çık.`);
+            }
+
+            if (btn.dataset.loading === "1") return;
+            btn.dataset.loading = "1";
+
+            out.innerHTML = "";
+            out.className = "";
+            btn.disabled = true;
+            startLoading();
+
+            try {
+                const payload = {
+                    text: text.value,
+                    count: Number(countInput?.value || 20)
+                };
+
+                const resp = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(data.error || "Request failed");
+
+                lastPlaylist = data;
+
+                const tracksHtml = (data.tracks || []).map(t =>
+                    `<li>${escapeHtml(t.artist)} - ${escapeHtml(t.song)}</li>`
+                ).join("");
+
+                const tags = Array.isArray(data.vibe_tags) ? data.vibe_tags.join(", ") : "";
+
+                out.innerHTML = `
+              <div class="card">
+                <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin için yapıldı.</b></div>
+                <h2 class="cardTitle">${escapeHtml(data.title || "Playlist")}</h2>
+                <p class="cardDesc">${escapeHtml(data.description || "")}</p>
+                <div class="tags">Tags: ${escapeHtml(tags)}</div>
+
+                <div style="margin-top:12px;">
+                  <b>Tracklist</b>
+                  <ol>${tracksHtml}</ol>
+                </div>
+
+                <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <button id="saveBtn" class="ghost-btn">Spotify'ya ekle</button>
+                  <button id="copyBtn" class="ghost-btn">JSON kopyala</button>
+                </div>
+
+                <details>
+                  <summary style="margin-top:12px; cursor:pointer;">JSON gör</summary>
+                  <pre id="jsonBox">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                </details>
+              </div>
+            `;
+
+                const saveBtn = document.getElementById("saveBtn");
+                const copyBtn = document.getElementById("copyBtn");
+                const jsonBox = document.getElementById("jsonBox");
+
+                saveBtn.onclick = async () => {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = "Kaydediliyor...";
+                    try {
+                        const me = await fetch("/api/me", { credentials: "include" })
+                            .then(r => r.ok ? r.json() : null);
+
+                        if (!me || !me.ok) {
+                            window.location.href = "/login";
+                            return;
+                        }
+
+                        await addToSpotify(lastPlaylist);
+                        saveBtn.textContent = "Eklendi!";
+                        saveBtn.style.background = "rgba(34,197,94,.20)";
+                    } catch (e) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = "Spotify'ya ekle";
+                        alert(String(e));
+                    }
+                };
+
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(JSON.stringify(lastPlaylist, null, 2));
+                        copyBtn.textContent = "Kopyalandı!";
+                        setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
+                    } catch (e) {
+                        const r = document.createRange();
+                        r.selectNodeContents(jsonBox);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(r);
+                        document.execCommand("copy");
+                        sel.removeAllRanges();
+                        copyBtn.textContent = "Kopyalandı!";
+                        setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
+                    }
+                };
+
+            } catch (e) {
+                out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
+            } finally {
+                finishLoading();
+                btn.disabled = false;
+                btn.dataset.loading = "0";
+            }
+        };
+
+        // ---------- init ----------
+        window.addEventListener("load", async () => {
+            // default free görünüm
+            __isPremium = false;
             applyPlanUI();
-            refreshSpotifyStatus();
+            await refreshSpotifyStatus();
+            setTimeout(refreshSpotifyStatus, 600);
+
         });
     </script>
-
 </body>
 </html>
