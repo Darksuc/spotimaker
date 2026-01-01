@@ -579,19 +579,12 @@
                 const r = await fetch("/api/spotify/status");
                 const s = await r.json();
 
-                if (s.connected) {
-                    showConnected(s.user.name, s.premium);
-                } else {
-                    showConnectButton(s.reason);
-                }
-
                 if (!spotifyStatus || !spotifyLink) return;
 
-                if (j && j.ok && j.me) {
-                    // ✅ burası kritik: global state’i window yerine kendi değişkenine yaz
-                    __isPremium = Boolean(j.premium);
+                if (s.connected) {
+                    __isPremium = Boolean(s.premium);
 
-                    spotifyStatus.textContent = "Spotify bağlı: " + (j.me.display_name || "OK");
+                    spotifyStatus.textContent = "Spotify bağlı: " + (s.user?.name || "OK");
                     spotifyStatus.style.background = "rgba(34,197,94,.20)";
                     spotifyStatus.style.color = "#fff";
 
@@ -601,9 +594,6 @@
                     spotifyLink.style.opacity = "1";
 
                     if (logoutLink) logoutLink.style.display = "inline-block";
-
-                    // plan/premium görünümü + slider limitleri
-                    applyPlanUI();
                 } else {
                     __isPremium = false;
 
@@ -617,9 +607,10 @@
                     spotifyLink.style.opacity = "1";
 
                     if (logoutLink) logoutLink.style.display = "none";
-
-                    applyPlanUI();
                 }
+
+                applyPlanUI();
+
             } catch (e) {
                 console.warn("refreshSpotifyStatus hata:", e);
                 if (logoutLink) logoutLink.style.display = "none";
@@ -780,7 +771,12 @@
                     saveBtn.disabled = true;
                     saveBtn.textContent = "Kaydediliyor...";
                     try {
-                        const me = await fetch("/api/me", { credentials: "include" })
+                        const st = await fetch("/api/spotify/status").then(r => r.json());
+
+                        if (!st.connected) {
+                            window.location.href = "/login";
+                            return;
+                        }
                             .then(r => r.ok ? r.json() : null);
 
                         if (!me || !me.ok) {
