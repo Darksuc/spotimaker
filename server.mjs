@@ -210,8 +210,9 @@ app.get("/login", (req, res) => {
         setCookie(res, "spotify_state", state, 10 * 60 * 1000);
 
         const scope = [
+            "user-read-private",
+            "user-read-email",
             "user-top-read",
-            "playlist-read-private",
             "playlist-modify-public",
             "playlist-modify-private"
         ].join(" ");
