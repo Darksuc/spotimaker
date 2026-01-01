@@ -67,37 +67,6 @@ function buildEnergyCurve(n) {
     return arr;
 }
 
-function clearCookie(res, req, name) {
-    const isProd = process.env.NODE_ENV === "production";
-
-    // Ayný isimli cookie farklý Domain/Path ile set edilmiþ olabilir.
-    // Bu yüzden birkaç varyasyonla öldürüyoruz.
-    const host = (req?.hostname || "").split(":")[0]; // spotimaker.onrender.com gibi
-    const domains = [
-        undefined,          // domain belirtme
-        host || undefined,  // spotimaker.onrender.com
-        ".onrender.com"     // wildcard domain (sende bu þekilde set edilmiþ olabilir)
-    ].filter((d, i, a) => a.indexOf(d) === i);
-
-    const paths = ["/", undefined].filter((p, i, a) => a.indexOf(p) === i);
-
-    for (const domain of domains) {
-        for (const path of paths) {
-            const parts = [
-                `${name}=`,
-                "Max-Age=0",
-                "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-                `Path=${path || "/"}`,
-                domain ? `Domain=${domain}` : "",
-                "HttpOnly",
-                "SameSite=Lax",
-                isProd ? "Secure" : ""
-            ].filter(Boolean);
-
-            res.append("Set-Cookie", parts.join("; "));
-        }
-    }
-}
 
 function getCookie(req, name) {
     const header = req.headers.cookie || "";
@@ -108,16 +77,46 @@ function getCookie(req, name) {
 }
 function setCookie(res, name, value, maxAgeMs) {
     const isProd = process.env.NODE_ENV === "production";
-    const parts = [
+    const cookie = [
         `${name}=${encodeURIComponent(value)}`,
-        "Path=/",
         `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
+        "Path=/",
         "HttpOnly",
-        "SameSite=Lax"
-    ];
-    if (isProd) parts.push("Secure");
-    res.append("Set-Cookie", parts.join("; "));
+        "SameSite=Lax",
+        isProd ? "Secure" : ""
+    ].filter(Boolean).join("; ");
+
+    const prev = res.getHeader("Set-Cookie");
+    if (!prev) {
+        res.setHeader("Set-Cookie", cookie);
+    } else if (Array.isArray(prev)) {
+        res.setHeader("Set-Cookie", [...prev, cookie]);
+    } else {
+        res.setHeader("Set-Cookie", [prev, cookie]);
+    }
 }
+
+function clearCookie(res, req, name) {
+    const isProd = process.env.NODE_ENV === "production";
+    const cookie = [
+        `${name}=`,
+        "Max-Age=0",
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Lax",
+        isProd ? "Secure" : ""
+    ].filter(Boolean).join("; ");
+
+    const prev = res.getHeader("Set-Cookie");
+    if (!prev) {
+        res.setHeader("Set-Cookie", cookie);
+    } else if (Array.isArray(prev)) {
+        res.setHeader("Set-Cookie", [...prev, cookie]);
+    } else {
+        res.setHeader("Set-Cookie", [prev, cookie]);
+    }
+}
+
 
 // --- paths ---
 const __filename = fileURLToPath(import.meta.url);
