@@ -767,30 +767,32 @@
                 const copyBtn = document.getElementById("copyBtn");
                 const jsonBox = document.getElementById("jsonBox");
 
-                saveBtn.onclick = async () => {
+                saveBtn.onclick = async (e) => {
+                    e.preventDefault?.();
+
                     saveBtn.disabled = true;
                     saveBtn.textContent = "Kaydediliyor...";
+
                     try {
-                        const st = await fetch("/api/spotify/status").then(r => r.json());
+                        // login check: tek kaynak status
+                        const st = await fetch("/api/spotify/status", { credentials: "include" })
+                            .then(r => r.json())
+                            .catch(() => ({}));
 
                         if (!st.connected) {
                             window.location.href = "/login";
                             return;
                         }
-                            then(r => r.ok ? r.json() : null);
-
-                        if (!me || !me.ok) {
-                            window.location.href = "/login";
-                            return;
-                        }
 
                         await addToSpotify(lastPlaylist);
+
                         saveBtn.textContent = "Eklendi!";
                         saveBtn.style.background = "rgba(34,197,94,.20)";
-                    } catch (e) {
+                    } catch (err) {
+                        console.error(err);
                         saveBtn.disabled = false;
                         saveBtn.textContent = "Spotify'ya ekle";
-                        alert(String(e));
+                        alert(err?.message || String(err));
                     }
                 };
 
