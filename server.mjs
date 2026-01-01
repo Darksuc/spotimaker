@@ -1,4 +1,4 @@
-import express from "express";
+ï»¿import express from "express";
 import OpenAI from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -86,7 +86,7 @@ function setCookie(res, name, value, maxAgeMs) {
         isProd ? "Secure" : ""
     ].filter(Boolean).join("; ");
 
-    //  önemli: var olan Set-Cookie'leri EZME, üstüne EKLE
+    //  Ã¶nemli: var olan Set-Cookie'leri EZME, Ã¼stÃ¼ne EKLE
     const prev = res.getHeader("Set-Cookie");
     if (!prev) {
         res.setHeader("Set-Cookie", cookie);
@@ -162,6 +162,171 @@ const playlistSchema = {
 };
 
 // --- ROUTES ---
+async function saveSpotifyPlaylist(req, res) {
+    try {
+        const title = String(req.body?.title || "").trim() || "Spotimaker Playlist";
+        const description = String(req.body?.description || "").trim();
+        const tracks = Array.isArray(req.body?.tracks) ? req.body.tracks : [];
+
+        if (tracks.length < 1) return res.status(400).json({ error: "No tracks provided" });
+
+        // 1) Get current user (AUTO refresh+retry via spotifyFetch)
+        const meResp = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
+        if (!meResp.ok) {
+            return res.status(meResp.status || 500).json({
+                error: "Failed to read Spotify profile",
+                details: meResp.json || meResp.text || null
+            });
+        }
+
+        const me = meResp.json;
+        if (!me?.id) return res.status(500).json({ error: "Spotify user id missing" });
+
+        // --- PREMIUM/FREE DAILY SAVE LIMIT ---
+        const premium = isPremium(me.id);
+        const FREE_DAILY_SAVE = 1;
+
+        if (!premium) {
+            const savedToday = countSavedToday(me.id, "Europe/Istanbul");
+            if (savedToday >= FREE_DAILY_SAVE) {
+                return res.status(429).json({
+                    error: "Free gunluk Spotify'a kaydetme limiti doldu. Premium ile limitsiz.",
+                    savedToday,
+                    limit: FREE_DAILY_SAVE
+                });
+            }
+        }
+
+        // 2) Create playlist (AUTO refresh+retry via spotifyFetch)
+        const createResp = await spotifyFetch(
+            req,
+            res,
+            `https://api.spotify.com/v1/users/${encodeURIComponent(me.id)}/playlists`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: title,
+                    description: description || "Made with Spotimaker",
+                    public: false
+                })
+            }
+        );
+
+        if (!createResp.ok) {
+            return res.status(createResp.status || 500).json({
+                error: "Failed to create playlist",
+                details: createResp.json || createResp.text || null
+            });
+        }
+
+        const created = createResp.json;
+        const playlistId = created?.id;
+        if (!playlistId) return res.status(500).json({ error: "Playlist id missing after create" });
+
+        // ---- helpers: normalize + concurrency-limited Spotify search ----
+        function normalizeStr(s) {
+            return String(s || "")
+                .replace(/\s+/g, " ")
+                .replace(/\((.*?)\)/g, "")
+                .replace(/\[(.*?)\]/g, "")
+                .replace(/feat\.?/ig, "")
+                .replace(/ft\.?/ig, "")
+                .replace(/â€“/g, "-")
+                .trim();
+        }
+
+        // ---- IMPORTANT: Bundan sonraki Spotify SEARCH + ADD calls da spotifyFetch kullanmalÄ± ----
+        // Senin kodun devamÄ±nda muhtemelen:
+        // - trackleri spotify'da arayÄ±p URI Ã§Ä±karÄ±yorsun
+        // - sonra playlist'e ekliyorsun
+        //
+        // AÅŸaÄŸÄ±daki iki kÃ¼Ã§Ã¼k helper'Ä± kullan:
+
+        async function spotifySearchTrack(query) {
+            const url = "https://api.spotify.com/v1/search?" + new URLSearchParams({
+                q: query,
+                type: "track",
+                limit: "1"
+            }).toString();
+
+            const r = await spotifyFetch(req, res, url);
+            if (!r.ok) return null;
+            const items = r.json?.tracks?.items || [];
+            return items[0] || null;
+        }
+
+        async function spotifyAddTracks(uris) {
+            // Spotify: 100 uri per request
+            for (let i = 0; i < uris.length; i += 100) {
+                const chunk = uris.slice(i, i + 100);
+                const r = await spotifyFetch(
+                    req,
+                    res,
+                    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ uris: chunk })
+                    }
+                );
+                if (!r.ok) {
+                    throw new Error("Failed to add tracks: " + JSON.stringify(r.json || r.text || r.status));
+                }
+            }
+        }
+
+        // ---- Senin mevcut akÄ±ÅŸÄ±n (tracks -> search -> uris) burada devam etmeli ----
+        // Åžimdilik track listesi zaten uri ise direkt ekle:
+        const urisDirect = tracks
+            .map(t => (typeof t === "string" ? t : (t?.uri || t?.spotify_uri || (t?.id ? `spotify:track:${t.id}` : null))))
+            .filter(Boolean);
+
+        if (urisDirect.length) {
+            await spotifyAddTracks(urisDirect);
+            if (typeof logEvent === "function") logEvent(me.id, "playlist_saved", { count: urisDirect.length, premium });
+            return res.json({ ok: true, playlistId, url: created?.external_urls?.spotify, added: urisDirect.length });
+        }
+
+        // EÄŸer senin tracks formatÄ±n artist/song ise buradan aramaya geÃ§ersin:
+        const uris = [];
+        for (const t of tracks) {
+            const artist = normalizeStr(t?.artist);
+            const song = normalizeStr(t?.song);
+            if (!artist || !song) continue;
+
+            const q = `track:${song} artist:${artist}`;
+            const hit = await spotifySearchTrack(q);
+            if (hit?.uri) uris.push(hit.uri);
+        }
+
+        if (!uris.length) {
+            return res.status(400).json({ error: "No Spotify matches found for provided tracks" });
+        }
+
+        await spotifyAddTracks(uris);
+
+        if (typeof logEvent === "function") logEvent(me.id, "playlist_saved", { count: uris.length, premium });
+
+        return res.json({
+            ok: true,
+            playlistId,
+            url: created?.external_urls?.spotify,
+            added: uris.length,
+            premium
+        });
+
+    } catch (e) {
+        console.error("saveSpotifyPlaylist crash:", e);
+        return res.status(500).json({ error: String(e?.message || e) });
+    }
+}
+ {
+        console.error("saveSpotifyPlaylist crash:", e);
+        return res.status(500).json({ error: String(e?.message || e) });
+    }
+
+
 app.get("/api/debug/users", (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
@@ -225,7 +390,7 @@ app.get("/login", (req, res) => {
                 SPOTIFY_CLIENT_ID: !!clientId,
                 SPOTIFY_REDIRECT_URI: !!redirectUri
             });
-            return res.status(500).send("Sunucu ayarý eksik: Spotify giriþ bilgileri tanýmlý deðil (CLIENT_ID / REDIRECT_URI).");
+            return res.status(500).send("Sunucu ayarÄ± eksik: Spotify giriÅŸ bilgileri tanÄ±mlÄ± deÄŸil (CLIENT_ID / REDIRECT_URI).");
         }
 
         const force = String(req.query.force || "") === "1";
@@ -242,7 +407,7 @@ app.get("/login", (req, res) => {
         return res.redirect(`https://accounts.spotify.com/authorize?${params}`);
     } catch (e) {
         console.error("/login crashed:", e);
-        return res.status(500).send("Spotify giriþ baþlatýlýrken hata oluþtu: " + (e?.message || String(e)));
+        return res.status(500).send("Spotify giriÅŸ baÅŸlatÄ±lÄ±rken hata oluÅŸtu: " + (e?.message || String(e)));
     }
 });
 
@@ -356,7 +521,7 @@ async function refreshSpotifyAccessToken(req, res) {
 
     setCookie(res, "spotify_access_token", j.access_token, expiresIn * 1000);
 
-    // Spotify bazen refresh_token dönmez; dönse bile güncellemek zarar vermez
+    // Spotify bazen refresh_token dÃ¶nmez; dÃ¶nse bile gÃ¼ncellemek zarar vermez
     if (j.refresh_token) {
         setCookie(res, "spotify_refresh_token", j.refresh_token, 365 * 24 * 60 * 60 * 1000);
     }
@@ -370,7 +535,7 @@ async function getValidSpotifyToken(req, res) {
     const token = getCookie(req, "spotify_access_token");
     const exp = Number(getCookie(req, "spotify_expires_at") || 0);
 
-    // token varsa ve bitmeye 60sn’den fazla varsa OK
+    // token varsa ve bitmeye 60snâ€™den fazla varsa OK
     if (token && exp && (exp - Date.now() > 60_000)) return token;
 
     // token yok / bitiyor -> refresh dene
@@ -378,17 +543,17 @@ async function getValidSpotifyToken(req, res) {
     return refreshed;
 }
 
-// Eskisini bununla deðiþtir (aþaðýda kullanacaðýz)
+// Eskisini bununla deÄŸiÅŸtir (aÅŸaÄŸÄ±da kullanacaÄŸÄ±z)
 async function requireSpotifyToken(req, res) {
     const token = await getValidSpotifyToken(req, res);
     if (!token) {
-        res.status(401).json({ error: "Spotify oturumu yok veya süresi doldu. /login" });
+        res.status(401).json({ error: "Spotify oturumu yok veya sÃ¼resi doldu. /login" });
         return null;
     }
     return token;
 }
 
-    // Çýkýþ yap: cookie temizle, ana sayfaya dön
+    // Ã‡Ä±kÄ±ÅŸ yap: cookie temizle, ana sayfaya dÃ¶n
 app.get("/logout", (req, res) => {
     try {
         clearCookie(res, req, "spotify_access_token");
@@ -401,8 +566,56 @@ app.get("/logout", (req, res) => {
         return res.redirect(302, "/");
     }
 });
+async function spotifyFetch(req, res, url, options = {}) {
+    // 1) token al (gerekirse refreshler)
+    let token = await getValidSpotifyToken(req, res);
+    if (!token) {
+        return { ok: false, status: 401, json: { error: "no_token" } };
+    }
 
-    // Hesap deðiþtir: cookie temizle, Spotify login'e force ile git (show_dialog=true)
+    // 2) istek at
+    const doReq = async (tk) => {
+        const r = await fetch(url, {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${tk}`,
+            },
+        });
+
+        // body parse (spotify bazen boÅŸ dÃ¶ner)
+        const ct = r.headers.get("content-type") || "";
+        let data = null;
+        if (ct.includes("application/json")) data = await r.json().catch(() => ({}));
+        else data = await r.text().catch(() => "");
+
+        return { r, data };
+    };
+
+    let { r, data } = await doReq(token);
+
+    // 3) 401 ise: token Ã¶lmÃ¼ÅŸ olabilir â†’ refresh + retry (1 kez)
+    if (r.status === 401) {
+        const refreshed = await refreshSpotifyAccessToken(req, res);
+        if (!refreshed) {
+            return { ok: false, status: 401, json: { error: "expired_and_refresh_failed" } };
+        }
+        token = refreshed;
+        ({ r, data } = await doReq(token));
+    }
+
+    const out = {
+        ok: r.ok,
+        status: r.status,
+        // json/text ayrÄ±mÄ±:
+        json: typeof data === "string" ? null : data,
+        text: typeof data === "string" ? data : null,
+    };
+
+    return out;
+}
+
+    // Hesap deÄŸiÅŸtir: cookie temizle, Spotify login'e force ile git (show_dialog=true)
 app.get("/switch-account", (req, res) => {
     try {
         clearCookie(res, req, "spotify_access_token");
@@ -425,7 +638,7 @@ app.get("/debug/cookies", (req, res) => {
         statePresent: Boolean(getCookie(req, "spotify_state"))
     });
 });
-// Admin: hediye kodu üret
+// Admin: hediye kodu Ã¼ret
 app.post("/api/admin/codes/create", (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
@@ -444,7 +657,7 @@ app.post("/api/admin/codes/create", (req, res) => {
 app.post("/api/redeem", async (req, res) => {
     try {
         const spotify_id = await getSpotifyMeId(req, res);
-        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify’a giriþ yap." });
+        if (!spotify_id) return res.status(401).json({ ok: false, error: "Ã–nce Spotifyâ€™a giriÅŸ yap." });
 
         const code = String(req.body?.code || "");
         const result = redeemCode(code, spotify_id);
@@ -502,7 +715,7 @@ app.get("/api/me", async (req, res) => {
 
         let data = await r.json().catch(() => ({}));
 
-        // 3) 401 ise: token aslýnda ölmüþ olabilir -> refresh yapýp 1 kez daha dene
+        // 3) 401 ise: token aslÄ±nda Ã¶lmÃ¼ÅŸ olabilir -> refresh yapÄ±p 1 kez daha dene
         if (r.status === 401) {
             const refreshed = await refreshSpotifyAccessToken(req, res);
             if (refreshed) {
@@ -515,7 +728,7 @@ app.get("/api/me", async (req, res) => {
         }
 
         if (!r.ok) {
-            // kritik: artýk sebebi göreceðiz
+            // kritik: artÄ±k sebebi gÃ¶receÄŸiz
             return res.status(200).json({
                 ok: false,
                 status: r.status,
@@ -683,7 +896,7 @@ Use this profile to personalize the playlist.
         // --- PREMIUM/FREE LIMITS ---
         let premium = false;
         try {
-            // spotify baðlýysa premium kontrol edelim (me.id ile)
+            // spotify baÄŸlÄ±ysa premium kontrol edelim (me.id ile)
             if (spotifyToken) {
                 const meRes = await fetch("https://api.spotify.com/v1/me", {
                     headers: { Authorization: `Bearer ${spotifyToken}` }
@@ -737,9 +950,9 @@ Language rule:
 -If the request is in Turkish and emotional, avoid aggressive Turkish rap or hard rock unless explicitly requested.
 
 Emotional arc rule:
-- Tracks 1–5: ease-in / set the mood
-- Tracks 6–15: main emotional peak
-- Tracks 16–20: resolution based on user input
+- Tracks 1â€“5: ease-in / set the mood
+- Tracks 6â€“15: main emotional peak
+- Tracks 16â€“20: resolution based on user input
 -Energy interpretation rule:
 -Energy refers to emotional flow and momentum, not loudness or aggression.
 -Higher energy does NOT mean aggressive rap, trap, EDM, or hard rock unless explicitly requested.
@@ -876,7 +1089,7 @@ if (!premium) {
                 .replace(/\[(.*?)\]/g, "")      // remove [...] like [Live]
                 .replace(/feat\.?/ig, "")
                 .replace(/ft\.?/ig, "")
-                .replace(/–/g, "-")
+                .replace(/â€“/g, "-")
                 .trim();
         }
 
@@ -1116,22 +1329,22 @@ app.get("/admin", (req, res) => {
     <div class="card"><b>Total events</b><div>${stats.totalEvents}</div></div>
   </div>
     <div class="card" style="margin:14px 0;">
-    <h3 style="margin:0 0 10px 0;">Premium Kod Üret</h3>
+    <h3 style="margin:0 0 10px 0;">Premium Kod Ãœret</h3>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <label>Gün:
+      <label>GÃ¼n:
         <input id="days" type="number" value="30" min="1" style="width:90px; padding:8px;" />
       </label>
-      <label>Kullaným:
+      <label>KullanÄ±m:
         <input id="uses" type="number" value="1" min="1" style="width:90px; padding:8px;" />
       </label>
       <label>Not:
         <input id="note" type="text" placeholder="Hediye / promo vs" style="min-width:220px; padding:8px;" />
       </label>
-      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod üret</button>
+      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod Ã¼ret</button>
     </div>
     <div id="codeOut" style="margin-top:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;"></div>
     <div style="color:#666; font-size:12px; margin-top:6px;">
-      Not: Bu sayfa ADMIN_TOKEN ister. URL’ye ?token=ADMIN_TOKEN ekleyebilirsin.
+      Not: Bu sayfa ADMIN_TOKEN ister. URLâ€™ye ?token=ADMIN_TOKEN ekleyebilirsin.
     </div>
   </div>
 
@@ -1140,7 +1353,7 @@ app.get("/admin", (req, res) => {
     const out = document.getElementById("codeOut");
 
     btn.onclick = async () => {
-      out.textContent = "Üretiliyor...";
+      out.textContent = "Ãœretiliyor...";
       try {
         const days = Number(document.getElementById("days").value || 30);
         const max_uses = Number(document.getElementById("uses").value || 1);
@@ -1153,7 +1366,7 @@ app.get("/admin", (req, res) => {
         });
 
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(j.error || "Kod üretilemedi");
+        if (!r.ok) throw new Error(j.error || "Kod Ã¼retilemedi");
 
         out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + j.code + "</span>";
       } catch (e) {
