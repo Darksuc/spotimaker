@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
-import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats, isPremium, countSavedToday } from "./db.mjs";
+import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats, isPremium, createRedeemCode, redeemCode } from "./db.mjs";
 async function getSpotifyMeId(req) {
     const token = getCookie(req, "spotify_access_token");
     if (!token) return "";
@@ -180,8 +180,8 @@ app.get("/debug/spotify", async (req, res) => {
 
         return res.json({
             ok: true,
-            me: { id: me.id, display_name: me.display_name },
-            sampleTopTracks: (tracks.items || []).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`)
+            me: { id: data.id, display_name: data.display_name },
+            premium: isPremium(String(data.id || ""))
         });
     } catch (e) {
         console.error(e);
@@ -338,6 +338,46 @@ function requireSpotifyToken(req, res) {
             statePresent: Boolean(getCookie(req, "spotify_state"))
         });
     });
+function requireAdmin(req, res) {
+    const token = String(req.query.token || req.headers["x-admin-token"] || "");
+    if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+        res.status(401).json({ error: "Unauthorized" });
+        return false;
+    }
+    return true;
+}
+
+// Admin: hediye kodu üret
+app.post("/api/admin/codes/create", (req, res) => {
+    try {
+        if (!requireAdmin(req, res)) return;
+
+        const days = Number(req.body?.days ?? 30);
+        const max_uses = Number(req.body?.max_uses ?? 1);
+        const note = String(req.body?.note ?? "");
+
+        const codeObj = createRedeemCode({ days, max_uses, note });
+        return res.json({ ok: true, code: codeObj.code, meta: codeObj });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: "code create failed" });
+    }
+});
+app.post("/api/redeem", async (req, res) => {
+    try {
+        const spotify_id = await getSpotifyMeId(req); // sende zaten var
+        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify’a giriþ yap." });
+
+        const code = String(req.body?.code || "");
+        const result = redeemCode(code, spotify_id);
+        if (!result.ok) return res.status(400).json(result);
+
+        return res.json({ ok: true, premium_until: result.premium_until, days_added: result.days_added });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: "redeem failed" });
+    }
+});
 
 app.get("/spotify/top", async (req, res) => {
     try {

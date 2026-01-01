@@ -4,6 +4,8 @@ import path from "path";
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 const EVENTS_PATH = path.join(DATA_DIR, "events.json");
+const CODES_PATH = path.join(DATA_DIR, "codes.json");
+
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -34,7 +36,7 @@ export function upsertUser({ spotify_id, display_name }) {
         last_seen: ts,
         playlists_created: prev?.playlists_created || 0,
         playlists_saved: prev?.playlists_saved || 0,
-        logins: (prev?.logins || 0) + 1,
+        logins: (prev?.logins || 0) + 1,    
         premium_until: prev?.premium_until || 0
 
     };
@@ -120,4 +122,90 @@ export function getStats() {
         return c;
     }
 
+export function getPremiumUntil(spotify_id) {
+    const users = readJson(USERS_PATH, {});
+    return Number(users?.[spotify_id]?.premium_until || 0);
+}
+
+export function setPremiumUntil(spotify_id, premium_until_ts) {
+    const users = readJson(USERS_PATH, {});
+    if (!users[spotify_id]) return false;
+    users[spotify_id].premium_until = Number(premium_until_ts) || 0;
+    writeJson(USERS_PATH, users);
+    return true;
+}
+
+export function isPremium(spotify_id) {
+    const until = getPremiumUntil(spotify_id);
+    return until > Date.now();
+}
+
+// ---------------- Redeem Codes ----------------
+// codes.json format:
+// { "ABCDEF-123456": { code, created_ts, expires_ts, days, max_uses, used_count, note } }
+
+function normalizeCode(s) {
+    return String(s || "").trim().toUpperCase();
+}
+
+export function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
+    const codes = readJson(CODES_PATH, {});
+    const code =
+        cryptoRandomCode() + "-" + cryptoRandomDigits();
+
+    const created_ts = Date.now();
+    const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
+
+    codes[code] = {
+        code,
+        created_ts,
+        expires_ts,
+        days: Number(days) || 30,
+        max_uses: Number(max_uses) || 1,
+        used_count: 0,
+        note: String(note || "")
+    };
+
+    writeJson(CODES_PATH, codes);
+    return codes[code];
+}
+
+export function redeemCode(codeRaw, spotify_id) {
+    const code = normalizeCode(codeRaw);
+    if (!code) return { ok: false, error: "Kod boþ." };
+
+    const codes = readJson(CODES_PATH, {});
+    const item = codes[code];
+    if (!item) return { ok: false, error: "Kod geçersiz." };
+
+    const now = Date.now();
+    if (item.expires_ts && now > item.expires_ts) return { ok: false, error: "Kodun süresi dolmuþ." };
+    if ((item.used_count || 0) >= (item.max_uses || 1)) return { ok: false, error: "Kod kullaným limiti dolmuþ." };
+
+    // premium extension: mevcut premium bitiþi gelecekteyse onun üstüne ekle
+    const current = getPremiumUntil(spotify_id);
+    const base = Math.max(now, current);
+    const addMs = (Number(item.days) || 30) * 24 * 60 * 60 * 1000;
+    const newUntil = base + addMs;
+
+    const ok = setPremiumUntil(spotify_id, newUntil);
+    if (!ok) return { ok: false, error: "Kullanýcý bulunamadý (önce Spotify ile giriþ yap)." };
+
+    item.used_count = (item.used_count || 0) + 1;
+    codes[code] = item;
+    writeJson(CODES_PATH, codes);
+
+    return { ok: true, premium_until: newUntil, days_added: item.days };
+}
+
+function cryptoRandomDigits() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function cryptoRandomCode() {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // O/0, I/1 yok
+    let out = "";
+    for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return out;
+}
 
