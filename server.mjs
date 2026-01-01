@@ -15,8 +15,8 @@ import {
     createRedeemCode,
     redeemCode
 } from "./db.mjs";
-async function getSpotifyMeId(req) {
-    const token = getCookie(req, "spotify_access_token");
+async function getSpotifyMeId(req, res) {
+    const token = await getValidSpotifyToken(req, res);
     if (!token) return "";
     try {
         const meRes = await fetch("https://api.spotify.com/v1/me", {
@@ -173,9 +173,8 @@ app.get("/api/debug/users", (req, res) => {
 });
 
 app.get("/debug/spotify", async (req, res) => {
-    const token = getCookie(req, "spotify_access_token");
-
-    if (!token) return res.json({ ok: false, reason: "no spotify_access_token cookie" });
+    const token = await getValidSpotifyToken(req, res);
+    if (!token) return res.status(401).json({ error: "Spotify not connected" });
 
     try {
         const meRes = await fetch("https://api.spotify.com/v1/me", {
@@ -441,7 +440,7 @@ app.post("/api/admin/codes/create", (req, res) => {
 });
 app.post("/api/redeem", async (req, res) => {
     try {
-        const spotify_id = await getSpotifyMeId(req); // sende zaten var
+        const spotify_id = await getSpotifyMeId(req, res);
         if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify’a giriþ yap." });
 
         const code = String(req.body?.code || "");
@@ -523,7 +522,7 @@ app.get("/api/spotify/status", (req, res) => res.redirect(302, "/api/me"));
 // AI generate
 app.post("/api/generate", async (req, res) => {
     try {
-        const spotifyToken = getCookie(req, "spotify_access_token");
+        const spotifyToken = await getValidSpotifyToken(req, res);
         let spotifyProfileText = "";
 
         if (spotifyToken) {
@@ -718,7 +717,7 @@ ${spotifyProfileText}
 });
 async function saveSpotifyPlaylist(req, res) {
     try {
-        const token = getCookie(req, "spotify_access_token");
+        const token = await getValidSpotifyToken(req, res);
         if (!token) return res.status(401).json({ error: "Spotify not connected" });
 
         const title = String(req.body?.title || "").trim() || "Spotimaker Playlist";
