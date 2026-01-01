@@ -958,7 +958,7 @@ app.post("/spotify/save", saveSpotifyPlaylist);
 app.post("/api/spotify/save", saveSpotifyPlaylist);
 
 function requireAdmin(req, res) {
-    const token = await String(req.query.token || req.headers["x-admin-token"] || "");
+    const token = String(req.query.token || req.headers["x-admin-token"] || "");
     if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
         res.status(401).send("Unauthorized");
         return false;
