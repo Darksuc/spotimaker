@@ -86,6 +86,7 @@ function setCookie(res, name, value, maxAgeMs) {
         isProd ? "Secure" : ""
     ].filter(Boolean).join("; ");
 
+    //  önemli: var olan Set-Cookie'leri EZME, üstüne EKLE
     const prev = res.getHeader("Set-Cookie");
     if (!prev) {
         res.setHeader("Set-Cookie", cookie);
@@ -489,32 +490,47 @@ app.get("/spotify/top", async (req, res) => {
 
 app.get("/api/me", async (req, res) => {
     try {
-        const token = await getValidSpotifyToken(req, res);
-        if (!token) return res.status(200).json({ ok: false });
+        // 1) normal token
+        let token = await getValidSpotifyToken(req, res);
+        if (!token) return res.status(200).json({ ok: false, reason: "no_token" });
 
-        const r = await fetch("https://api.spotify.com/v1/me", {
+        // 2) ilk deneme
+        let r = await fetch("https://api.spotify.com/v1/me", {
             headers: { Authorization: `Bearer ${token}` }
         });
 
-        const data = await r.json();
+        let data = await r.json().catch(() => ({}));
+
+        // 3) 401 ise: token aslýnda ölmüþ olabilir -> refresh yapýp 1 kez daha dene
+        if (r.status === 401) {
+            const refreshed = await refreshSpotifyAccessToken(req, res);
+            if (refreshed) {
+                token = refreshed;
+                r = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                data = await r.json().catch(() => ({}));
+            }
+        }
+
         if (!r.ok) {
-            console.error("Spotify /me error:", data);
-            return res.status(200).json({ ok: false });
+            // kritik: artýk sebebi göreceðiz
+            return res.status(200).json({
+                ok: false,
+                status: r.status,
+                spotify_error: data
+            });
         }
 
         const premium = isPremium(data.id);
 
         return res.status(200).json({
             ok: true,
-            me: {
-                id: data.id,
-                display_name: data.display_name
-            },
+            me: { id: data.id, display_name: data.display_name },
             premium
         });
     } catch (e) {
-        console.error("api/me failed:", e);
-        return res.status(200).json({ ok: false });
+        return res.status(200).json({ ok: false, reason: "exception", message: String(e?.message || e) });
     }
 });
 
