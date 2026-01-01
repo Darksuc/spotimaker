@@ -4,7 +4,17 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
-import { upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats, isPremium, createRedeemCode, redeemCode } from "./db.mjs";
+import {
+    upsertUser,
+    markPlaylistCreated,
+    markPlaylistSaved,
+    getUsers,
+    getStats,
+    isPremium,
+    countSavedToday,
+    createRedeemCode,
+    redeemCode
+} from "./db.mjs";
 async function getSpotifyMeId(req) {
     const token = getCookie(req, "spotify_access_token");
     if (!token) return "";
@@ -180,8 +190,9 @@ app.get("/debug/spotify", async (req, res) => {
 
         return res.json({
             ok: true,
-            me: { id: data.id, display_name: data.display_name },
-            premium: isPremium(String(data.id || ""))
+            me: { id: me.id, display_name: me.display_name },
+            premium: isPremium(String(me.id || "")),
+            sampleTopTracks: (tracks?.items || []).slice(0, 3).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim())
         });
     } catch (e) {
         console.error(e);
@@ -939,6 +950,52 @@ app.get("/admin", (req, res) => {
     <div class="card"><b>Active 24h</b><div>${stats.active24h}</div></div>
     <div class="card"><b>Total events</b><div>${stats.totalEvents}</div></div>
   </div>
+    <div class="card" style="margin:14px 0;">
+    <h3 style="margin:0 0 10px 0;">Premium Kod Üret</h3>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <label>Gün:
+        <input id="days" type="number" value="30" min="1" style="width:90px; padding:8px;" />
+      </label>
+      <label>Kullaným:
+        <input id="uses" type="number" value="1" min="1" style="width:90px; padding:8px;" />
+      </label>
+      <label>Not:
+        <input id="note" type="text" placeholder="Hediye / promo vs" style="min-width:220px; padding:8px;" />
+      </label>
+      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod üret</button>
+    </div>
+    <div id="codeOut" style="margin-top:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;"></div>
+    <div style="color:#666; font-size:12px; margin-top:6px;">
+      Not: Bu sayfa ADMIN_TOKEN ister. URL’ye ?token=ADMIN_TOKEN ekleyebilirsin.
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById("createCodeBtn");
+    const out = document.getElementById("codeOut");
+
+    btn.onclick = async () => {
+      out.textContent = "Üretiliyor...";
+      try {
+        const days = Number(document.getElementById("days").value || 30);
+        const max_uses = Number(document.getElementById("uses").value || 1);
+        const note = String(document.getElementById("note").value || "");
+
+        const r = await fetch("/api/admin/codes/create" + location.search, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ days, max_uses, note })
+        });
+
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || "Kod üretilemedi");
+
+        out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + j.code + "</span>";
+      } catch (e) {
+        out.textContent = "Hata: " + (e.message || e);
+      }
+    };
+  </script>
 
   <h2>Users (latest first)</h2>
   <table>
@@ -959,6 +1016,7 @@ app.get("/admin", (req, res) => {
   </table>
 </body>
 </html>`);
+
     } catch (e) {
         console.error("ADMIN ERROR:", e);
         return res.status(500).send("Admin crashed. Check logs.");

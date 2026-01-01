@@ -6,7 +6,6 @@ const USERS_PATH = path.join(DATA_DIR, "users.json");
 const EVENTS_PATH = path.join(DATA_DIR, "events.json");
 const CODES_PATH = path.join(DATA_DIR, "codes.json");
 
-
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function readJson(p, fallback) {
@@ -24,6 +23,8 @@ function writeJson(p, obj) {
     fs.renameSync(tmp, p);
 }
 
+// ---------------- Users & Events ----------------
+
 export function upsertUser({ spotify_id, display_name }) {
     const users = readJson(USERS_PATH, {});
     const ts = Date.now();
@@ -36,9 +37,8 @@ export function upsertUser({ spotify_id, display_name }) {
         last_seen: ts,
         playlists_created: prev?.playlists_created || 0,
         playlists_saved: prev?.playlists_saved || 0,
-        logins: (prev?.logins || 0) + 1,    
+        logins: (prev?.logins || 0) + 1,
         premium_until: prev?.premium_until || 0
-
     };
 
     writeJson(USERS_PATH, users);
@@ -93,34 +93,8 @@ export function getStats() {
 
     return { totalUsers, totalEvents, active24h };
 }
-    export function setPremiumUntil(spotify_id, premium_until_ts) {
-        const users = readJson(USERS_PATH, {});
-        if (!users[spotify_id]) return false;
-        users[spotify_id].premium_until = Number(premium_until_ts) || 0;
-        writeJson(USERS_PATH, users);
-        return true;
-    }
 
-    export function isPremium(spotify_id) {
-        const users = readJson(USERS_PATH, {});
-        const u = users[spotify_id];
-        if (!u) return false;
-        return Number(u.premium_until || 0) > Date.now();
-    }
-
-    export function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") {
-        const events = readJson(EVENTS_PATH, []);
-        const today = new Date().toLocaleDateString("en-CA", { timeZone }); // YYYY-MM-DD
-
-        let c = 0;
-        for (const e of events) {
-            if (e.spotify_id !== spotify_id) continue;
-            if (e.type !== "playlist_saved") continue;
-            const d = new Date(Number(e.ts || 0)).toLocaleDateString("en-CA", { timeZone });
-            if (d === today) c++;
-        }
-        return c;
-    }
+// ---------------- Premium ----------------
 
 export function getPremiumUntil(spotify_id) {
     const users = readJson(USERS_PATH, {});
@@ -140,6 +114,20 @@ export function isPremium(spotify_id) {
     return until > Date.now();
 }
 
+export function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") {
+    const events = readJson(EVENTS_PATH, []);
+    const today = new Date().toLocaleDateString("en-CA", { timeZone }); // YYYY-MM-DD
+
+    let c = 0;
+    for (const e of events) {
+        if (e.spotify_id !== spotify_id) continue;
+        if (e.type !== "playlist_saved") continue;
+        const d = new Date(Number(e.ts || 0)).toLocaleDateString("en-CA", { timeZone });
+        if (d === today) c++;
+    }
+    return c;
+}
+
 // ---------------- Redeem Codes ----------------
 // codes.json format:
 // { "ABCDEF-123456": { code, created_ts, expires_ts, days, max_uses, used_count, note } }
@@ -150,9 +138,8 @@ function normalizeCode(s) {
 
 export function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
     const codes = readJson(CODES_PATH, {});
-    const code =
-        cryptoRandomCode() + "-" + cryptoRandomDigits();
 
+    const code = cryptoRandomCode() + "-" + cryptoRandomDigits();
     const created_ts = Date.now();
     const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
 
@@ -208,4 +195,3 @@ function cryptoRandomCode() {
     for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
     return out;
 }
-
