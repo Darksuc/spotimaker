@@ -308,24 +308,12 @@ async function saveSpotifyPlaylist(req, res) {
 
         if (typeof logEvent === "function") logEvent(me.id, "playlist_saved", { count: uris.length, premium });
 
-        return res.json({
-            ok: true,
-            playlistId,
-            url: created?.external_urls?.spotify,
-            added: uris.length,
-            premium
-        });
-
+        return res.json({ ok: true, playlistId, url: created?.external_urls?.spotify, added: uris.length, premium });
     } catch (e) {
         console.error("saveSpotifyPlaylist crash:", e);
         return res.status(500).json({ error: String(e?.message || e) });
     }
 }
- {
-        console.error("saveSpotifyPlaylist crash:", e);
-        return res.status(500).json({ error: String(e?.message || e) });
-    }
-
 
 app.get("/api/debug/users", (req, res) => {
     try {
