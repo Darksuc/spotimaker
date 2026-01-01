@@ -777,7 +777,7 @@
                             window.location.href = "/login";
                             return;
                         }
-                            .then(r => r.ok ? r.json() : null);
+                            then(r => r.ok ? r.json() : null);
 
                         if (!me || !me.ok) {
                             window.location.href = "/login";
