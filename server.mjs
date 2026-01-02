@@ -16,6 +16,21 @@ import {
     createRedeemCode,
     redeemCode
 } from "./db.mjs";
+import { pool, initDb, getStats } from "./db.mjs";
+
+app.get("/api/admin/db-check", async (req, res) => {
+    try {
+        // admin koruman varsa burada çağır
+        // if (!requireAdmin(req, res)) return;
+
+        await initDb(); // tablo garanti
+        const stats = await getStats();
+        const db = await pool.query("select current_database() as db, now() as now");
+        res.json({ ok: true, stats, db: db.rows[0] });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: String(e?.message || e) });
+    }
+});
 
 // --- paths ---
 const __filename = fileURLToPath(import.meta.url);
