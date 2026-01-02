@@ -970,6 +970,43 @@ app.get("/admin", async (req, res) => {
     <div class="card"><b>Active 24h</b><div>${stats.active24h ?? 0}</div></div>
     <div class="card"><b>Total events</b><div>${stats.totalEvents ?? 0}</div></div>
   </div>
+    <h2>Redeem Code Generator</h2>
+  <div class="card" style="max-width:520px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label>Days <input id="days" type="number" value="30" min="1" style="width:80px"></label>
+      <label>Max uses <input id="max_uses" type="number" value="1" min="1" style="width:80px"></label>
+      <label>Note <input id="note" type="text" value="admin" style="width:200px"></label>
+      <button id="gen">Generate</button>
+    </div>
+    <div style="margin-top:10px;font-family:ui-monospace,Consolas,monospace" id="out"></div>
+    <small style="display:block;margin-top:8px;color:#666">This calls POST /api/admin/codes/create using your same admin token.</small>
+  </div>
+
+  <script>
+    const token = new URLSearchParams(location.search).get("token") || "";
+    const out = document.getElementById("out");
+
+    document.getElementById("gen").onclick = async () => {
+      out.textContent = "Generating...";
+      const days = Number(document.getElementById("days").value || 30);
+      const max_uses = Number(document.getElementById("max_uses").value || 1);
+      const note = String(document.getElementById("note").value || "");
+
+      const r = await fetch("/api/admin/codes/create?token=" + encodeURIComponent(token), {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ days, max_uses, note })
+      });
+
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) {
+        out.textContent = "Error: " + (j.error || r.status);
+        return;
+      }
+      out.textContent = "CODE: " + j.code;
+    };
+  </script>
+
 
   <table>
     <thead>
@@ -988,6 +1025,13 @@ app.get("/admin", async (req, res) => {
         console.error("ADMIN ERROR:", e);
         return res.status(500).send("Admin crashed. Check logs.");
     }
+});
+app.get("/api/redeem", (req, res) => {
+    res.status(405).send("Use POST /api/redeem with JSON body: {code:\"...\"}");
+});
+
+app.get("/api/admin/codes/create", (req, res) => {
+    res.status(405).send("Use POST /api/admin/codes/create (admin token required).");
 });
 
 // Static LAST
