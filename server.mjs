@@ -202,9 +202,14 @@ async function refreshSpotifyAccessToken(req, res) {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.access_token) {
         console.error("refresh token failed:", j);
+
+        // ✅ sadece access/exp sil, refresh'ı hemen yakma (debug + tekrar login için)
         clearCookie(res, req, "spotify_access_token");
-        clearCookie(res, req, "spotify_refresh_token");
         clearCookie(res, req, "spotify_expires_at");
+
+        // refresh tokenı da silmek istersen bunu ancak "invalid_grant" gibi net durumlarda yap
+        // clearCookie(res, req, "spotify_refresh_token");
+
         return null;
     }
 
@@ -223,8 +228,19 @@ async function refreshSpotifyAccessToken(req, res) {
 async function getValidSpotifyToken(req, res) {
     const token = getCookie(req, "spotify_access_token");
     const exp = Number(getCookie(req, "spotify_expires_at") || 0);
-    if (token && exp && (exp - Date.now() > 60_000)) return token;
-    return await refreshSpotifyAccessToken(req, res);
+    async function getValidSpotifyToken(req, res) {
+        const token = getCookie(req, "spotify_access_token");
+        const exp = Number(getCookie(req, "spotify_expires_at") || 0);
+
+        // ✅ token varsa ama exp yoksa: token'ı kullan (refresh'e zorlama)
+        if (token && !exp) return token;
+
+        // token varsa ve bitmeye 60sn’den fazla varsa OK
+        if (token && exp && (exp - Date.now() > 60_000)) return token;
+
+        // token yok / bitiyor -> refresh dene
+        return await refreshSpotifyAccessToken(req, res);
+    }
 }
 
 async function requireSpotifyToken(req, res) {
@@ -446,13 +462,29 @@ app.get("/callback", async (req, res) => {
             console.error("Spotify token error:", data);
             return res.status(500).send("Token exchange failed");
         }
-        // === A SEÇENEĞİ: ESKİ SPOTIFY COOKIE'LERİNİ TEMİZLE ===
-        // hesap değiştirirken eski token/scope karışmasını önler
+
+        // ✅ eski token cookie'lerini her zaman temizle (karışmayı önler)
         clearCookie(res, req, "spotify_access_token");
         clearCookie(res, req, "spotify_refresh_token");
         clearCookie(res, req, "spotify_expires_at");
+        clearCookie(res, req, "spotify_state"); // bunu burada silebilirsin
 
-        // user upsert (IMPORTANT: await)
+        const expiresIn = Number(data.expires_in || 3600);
+        const expiresAt = Date.now() + expiresIn * 1000;
+
+        // ✅ yeni cookie'leri set et
+        setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
+
+        if (data.refresh_token) {
+            setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
+        } else {
+            // refresh gelmezse eskisi kalmasın
+            clearCookie(res, req, "spotify_refresh_token");
+        }
+
+        setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
+
+        // ✅ user upsert (cookie setten sonra bile olur, ama burada yapalım)
         try {
             const meRes = await fetch("https://api.spotify.com/v1/me", {
                 headers: { Authorization: `Bearer ${data.access_token}` }
@@ -466,29 +498,13 @@ app.get("/callback", async (req, res) => {
             console.error("upsertUser failed:", e);
         }
 
-        clearCookie(res, req, "spotify_state");
-
-        const expiresIn = Number(data.expires_in || 3600);
-        const expiresAt = Date.now() + expiresIn * 1000;
-
-        setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
-
-        if (data.refresh_token) {
-            setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
-        } else {
-            // Spotify bazen refresh_token yollamaz; eski refresh_token kalırsa hesap/scope karışır
-            clearCookie(res, req, "spotify_refresh_token");
-        }
-
-        setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
-
         return res.redirect("/");
     } catch (err) {
         console.error(err);
         return res.status(500).send("Callback failed");
     }
 });
-
+    
 // Logout
 app.get("/logout", (req, res) => {
     try {
@@ -544,9 +560,6 @@ app.get("/api/spotify/status", async (req, res) => {
         if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
         if (r.status === 403) {
             // scope karıştıysa kullanıcıyı temiz bir force-login’e zorla
-            clearCookie(res, req, "spotify_access_token");
-            clearCookie(res, req, "spotify_refresh_token");
-            clearCookie(res, req, "spotify_expires_at");
 
             return res.json({
                 connected: false,
