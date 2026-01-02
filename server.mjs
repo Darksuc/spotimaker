@@ -31,6 +31,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Render gibi reverse-proxy ortamlarında HTTPS'yi doğru anlamak için
+app.enable("trust proxy");
+
+// Prod'da HTTP gelirse HTTPS'ye zorla (Secure cookie sorunu biter)
+app.use((req, res, next) => {
+    if (process.env.NODE_ENV === "production") {
+        const proto = req.headers["x-forwarded-proto"];
+        if (proto && proto !== "https") {
+            return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+        }
+    }
+    next();
+});
+
 
 // --- OpenAI client ---
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
