@@ -1,157 +1,208 @@
-import fs from "fs";
-import path from "path";
+// db.mjs (Postgres)
+// Bu dosya: upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats,
+// isPremium, countSavedToday, createRedeemCode, redeemCode fonksiyonlarýný export eder.
 
-const DATA_DIR =
-    process.env.DATA_DIR ||
-    process.env.RENDER_DISK_PATH ||                // Render persistent disk verirsen
-    path.join(process.env.TMPDIR || "/tmp", "spotimaker-data"); // free’de bile writable
-const USERS_PATH = path.join(DATA_DIR, "users.json");
-const EVENTS_PATH = path.join(DATA_DIR, "events.json");
-const CODES_PATH = path.join(DATA_DIR, "codes.json");
+import pg from "pg";
+const { Pool } = pg;
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-
-function readJson(p, fallback) {
-    try {
-        return JSON.parse(fs.readFileSync(p, "utf-8"));
-    } catch (e) {
-        console.error("readJson failed:", p, e?.message || e);
-        return fallback;
-    }
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+    throw new Error("DATABASE_URL env missing");
 }
 
-function writeJson(p, obj) {
-    try {
-        const tmp = p + ".tmp";
-        fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf-8");
-        fs.renameSync(tmp, p);
-    } catch (e) {
-        console.error("writeJson failed:", p, e?.message || e);
-        throw e;
-    }
+export const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
+});
+
+function now() {
+    return Date.now();
 }
 
-// ---------------- Users & Events ----------------
+// --- DB init (shell yoksa bile tablo kurulsun) ---
+export async function initDb() {
+    const sql = `
+  create table if not exists users (
+    spotify_id text primary key,
+    display_name text not null default '',
+    first_seen bigint not null,
+    last_seen bigint not null,
+    playlists_created int not null default 0,
+    playlists_saved int not null default 0,
+    logins int not null default 0,
+    premium_until bigint not null default 0
+  );
 
-export function upsertUser({ spotify_id, display_name }) {
-    const users = readJson(USERS_PATH, {});
-    const ts = Date.now();
-    const prev = users[spotify_id];
+  create table if not exists events (
+    id bigserial primary key,
+    spotify_id text not null references users(spotify_id) on delete cascade,
+    type text not null,
+    ts bigint not null,
+    meta jsonb not null default '{}'::jsonb
+  );
 
-    users[spotify_id] = {
-        spotify_id,
-        display_name: display_name || "",
-        first_seen: prev?.first_seen || ts,
-        last_seen: ts,
-        playlists_created: prev?.playlists_created || 0,
-        playlists_saved: prev?.playlists_saved || 0,
-        logins: (prev?.logins || 0) + 1,
-        premium_until: prev?.premium_until || 0
+  create index if not exists idx_events_user_type_ts
+  on events (spotify_id, type, ts desc);
+
+  create table if not exists redeem_codes (
+    code text primary key,
+    created_ts bigint not null,
+    expires_ts bigint not null,
+    days int not null,
+    max_uses int not null,
+    used_count int not null default 0,
+    note text not null default ''
+  );
+  `;
+    await pool.query(sql);
+}
+
+// --- USERS ---
+export async function upsertUser({ spotify_id, display_name }) {
+    const ts = now();
+    const name = String(display_name || "");
+
+    const q = `
+    insert into users (spotify_id, display_name, first_seen, last_seen, logins)
+    values ($1, $2, $3, $3, 1)
+    on conflict (spotify_id) do update
+      set display_name = excluded.display_name,
+          last_seen = excluded.last_seen,
+          logins = users.logins + 1
+    returning *;
+  `;
+    const r = await pool.query(q, [String(spotify_id), name, ts]);
+    return r.rows[0];
+}
+
+async function getPremiumUntil(spotify_id) {
+    const r = await pool.query(
+        `select premium_until from users where spotify_id=$1`,
+        [String(spotify_id)]
+    );
+    return Number(r.rows?.[0]?.premium_until || 0);
+}
+
+async function setPremiumUntil(spotify_id, premium_until) {
+    const r = await pool.query(
+        `update users set premium_until=$2 where spotify_id=$1`,
+        [String(spotify_id), Number(premium_until || 0)]
+    );
+    return r.rowCount > 0;
+}
+
+export async function isPremium(spotify_id) {
+    const until = await getPremiumUntil(spotify_id);
+    return until > now();
+}
+
+// --- EVENTS / STATS ---
+export async function markPlaylistCreated(spotify_id, meta = "") {
+    const ts = now();
+
+    await pool.query(
+        `update users
+     set playlists_created = playlists_created + 1,
+         last_seen = $2
+     where spotify_id = $1`,
+        [String(spotify_id), ts]
+    );
+
+    await pool.query(
+        `insert into events (spotify_id, type, ts, meta)
+     values ($1, 'playlist_created', $2, $3)`,
+        [String(spotify_id), ts, { meta }]
+    );
+}
+
+export async function markPlaylistSaved(spotify_id, meta = "") {
+    const ts = now();
+
+    await pool.query(
+        `update users
+     set playlists_saved = playlists_saved + 1,
+         last_seen = $2
+     where spotify_id = $1`,
+        [String(spotify_id), ts]
+    );
+
+    await pool.query(
+        `insert into events (spotify_id, type, ts, meta)
+     values ($1, 'playlist_saved', $2, $3)`,
+        [String(spotify_id), ts, { meta }]
+    );
+}
+
+export async function getUsers(limit = 200) {
+    const lim = Math.max(1, Math.min(1000, Number(limit) || 200));
+    const r = await pool.query(
+        `select * from users order by last_seen desc limit $1`,
+        [lim]
+    );
+    return r.rows;
+}
+
+export async function getStats() {
+    const [u, e] = await Promise.all([
+        pool.query(`select count(*)::int as n from users`),
+        pool.query(`select count(*)::int as n from events`)
+    ]);
+
+    const totalUsers = u.rows[0]?.n || 0;
+    const totalEvents = e.rows[0]?.n || 0;
+
+    const since24h = now() - 24 * 60 * 60 * 1000;
+    const a = await pool.query(
+        `select count(*)::int as n from users where last_seen >= $1`,
+        [since24h]
+    );
+
+    return {
+        totalUsers,
+        totalEvents,
+        active24h: a.rows[0]?.n || 0
     };
-
-    writeJson(USERS_PATH, users);
-
-    const events = readJson(EVENTS_PATH, []);
-    events.push({ spotify_id, type: "login", meta: "", ts });
-    writeJson(EVENTS_PATH, events);
 }
 
-export function markPlaylistCreated(spotify_id, meta = "") {
-    const users = readJson(USERS_PATH, {});
-    const ts = Date.now();
-    if (users[spotify_id]) {
-        users[spotify_id].playlists_created = (users[spotify_id].playlists_created || 0) + 1;
-        users[spotify_id].last_seen = ts;
-        writeJson(USERS_PATH, users);
-    }
-    const events = readJson(EVENTS_PATH, []);
-    events.push({ spotify_id, type: "playlist_created", meta, ts });
-    writeJson(EVENTS_PATH, events);
-}
+// MVP: son 3 günü çekip JS'te sayýyoruz (küçük kullanýmda yeterli, stabil)
+export async function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") {
+    const since = now() - 3 * 24 * 60 * 60 * 1000;
+    const r = await pool.query(
+        `select ts from events
+     where spotify_id=$1 and type='playlist_saved' and ts >= $2
+     order by ts desc`,
+        [String(spotify_id), since]
+    );
 
-export function markPlaylistSaved(spotify_id, meta = "") {
-    const users = readJson(USERS_PATH, {});
-    const ts = Date.now();
-    if (users[spotify_id]) {
-        users[spotify_id].playlists_saved = (users[spotify_id].playlists_saved || 0) + 1;
-        users[spotify_id].last_seen = ts;
-        writeJson(USERS_PATH, users);
-    }
-    const events = readJson(EVENTS_PATH, []);
-    events.push({ spotify_id, type: "playlist_saved", meta, ts });
-    writeJson(EVENTS_PATH, events);
-}
-
-export function getUsers(limit = 200) {
-    const usersObj = readJson(USERS_PATH, {});
-    const arr = Object.values(usersObj);
-    arr.sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0));
-    return arr.slice(0, limit);
-}
-
-export function getStats() {
-    const usersObj = readJson(USERS_PATH, {});
-    const totalUsers = Object.keys(usersObj).length;
-
-    const events = readJson(EVENTS_PATH, []);
-    const totalEvents = events.length;
-
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    const active24h = Object.values(usersObj).filter(u => (u.last_seen || 0) >= cutoff).length;
-
-    return { totalUsers, totalEvents, active24h };
-}
-
-// ---------------- Premium ----------------
-
-export function getPremiumUntil(spotify_id) {
-    const users = readJson(USERS_PATH, {});
-    return Number(users?.[spotify_id]?.premium_until || 0);
-}
-
-export function setPremiumUntil(spotify_id, premium_until_ts) {
-    const users = readJson(USERS_PATH, {});
-    if (!users[spotify_id]) return false;
-    users[spotify_id].premium_until = Number(premium_until_ts) || 0;
-    writeJson(USERS_PATH, users);
-    return true;
-}
-
-export function isPremium(spotify_id) {
-    const until = getPremiumUntil(spotify_id);
-    return until > Date.now();
-}
-
-export function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") {
-    const events = readJson(EVENTS_PATH, []);
-    const today = new Date().toLocaleDateString("en-CA", { timeZone }); // YYYY-MM-DD
-
+    const today = new Date().toLocaleDateString("en-CA", { timeZone });
     let c = 0;
-    for (const e of events) {
-        if (e.spotify_id !== spotify_id) continue;
-        if (e.type !== "playlist_saved") continue;
-        const d = new Date(Number(e.ts || 0)).toLocaleDateString("en-CA", { timeZone });
+    for (const row of r.rows) {
+        const d = new Date(Number(row.ts || 0)).toLocaleDateString("en-CA", { timeZone });
         if (d === today) c++;
     }
     return c;
 }
 
-// ---------------- Redeem Codes ----------------
-// codes.json format:
-// { "ABCDEF-123456": { code, created_ts, expires_ts, days, max_uses, used_count, note } }
-
+// --- REDEEM CODES ---
 function normalizeCode(s) {
     return String(s || "").trim().toUpperCase();
 }
+function cryptoRandomDigits() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+function cryptoRandomCode() {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let out = "";
+    for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return out;
+}
 
-export function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
-    const codes = readJson(CODES_PATH, {});
-
+export async function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
     const code = cryptoRandomCode() + "-" + cryptoRandomDigits();
-    const created_ts = Date.now();
+    const created_ts = now();
     const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
 
-    codes[code] = {
+    const obj = {
         code,
         created_ts,
         expires_ts,
@@ -161,45 +212,70 @@ export function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 36
         note: String(note || "")
     };
 
-    writeJson(CODES_PATH, codes);
-    return codes[code];
+    await pool.query(
+        `insert into redeem_codes (code, created_ts, expires_ts, days, max_uses, used_count, note)
+     values ($1,$2,$3,$4,$5,0,$6)`,
+        [obj.code, obj.created_ts, obj.expires_ts, obj.days, obj.max_uses, obj.note]
+    );
+
+    return obj;
 }
 
-export function redeemCode(codeRaw, spotify_id) {
+export async function redeemCode(codeRaw, spotify_id) {
     const code = normalizeCode(codeRaw);
-    if (!code) return { ok: false, error: "Kod boþ." };
+    const ts = now();
 
-    const codes = readJson(CODES_PATH, {});
-    const item = codes[code];
-    if (!item) return { ok: false, error: "Kod geçersiz." };
+    const client = await pool.connect();
+    try {
+        await client.query("begin");
 
-    const now = Date.now();
-    if (item.expires_ts && now > item.expires_ts) return { ok: false, error: "Kodun süresi dolmuþ." };
-    if ((item.used_count || 0) >= (item.max_uses || 1)) return { ok: false, error: "Kod kullaným limiti dolmuþ." };
+        const c = await client.query(
+            `select * from redeem_codes where code=$1 for update`,
+            [code]
+        );
+        const item = c.rows[0];
+        if (!item) {
+            await client.query("rollback");
+            return { ok: false, error: "Kod bulunamadi" };
+        }
+        if (Number(item.expires_ts) < ts) {
+            await client.query("rollback");
+            return { ok: false, error: "Kod suresi dolmus" };
+        }
+        if (Number(item.used_count) >= Number(item.max_uses)) {
+            await client.query("rollback");
+            return { ok: false, error: "Kod kullanim limiti dolmus" };
+        }
 
-    // premium extension: mevcut premium bitiþi gelecekteyse onun üstüne ekle
-    const current = getPremiumUntil(spotify_id);
-    const base = Math.max(now, current);
-    const addMs = (Number(item.days) || 30) * 24 * 60 * 60 * 1000;
-    const newUntil = base + addMs;
+        const u = await client.query(
+            `select premium_until from users where spotify_id=$1 for update`,
+            [String(spotify_id)]
+        );
+        if (!u.rows[0]) {
+            await client.query("rollback");
+            return { ok: false, error: "Kullanici bulunamadi (once Spotify ile giris yap)." };
+        }
 
-    const ok = setPremiumUntil(spotify_id, newUntil);
-    if (!ok) return { ok: false, error: "Kullanýcý bulunamadý (önce Spotify ile giriþ yap)." };
+        const current = Number(u.rows[0].premium_until || 0);
+        const base = Math.max(ts, current);
+        const addMs = (Number(item.days) || 30) * 24 * 60 * 60 * 1000;
+        const newUntil = base + addMs;
 
-    item.used_count = (item.used_count || 0) + 1;
-    codes[code] = item;
-    writeJson(CODES_PATH, codes);
+        await client.query(
+            `update users set premium_until=$2 where spotify_id=$1`,
+            [String(spotify_id), newUntil]
+        );
+        await client.query(
+            `update redeem_codes set used_count = used_count + 1 where code=$1`,
+            [code]
+        );
 
-    return { ok: true, premium_until: newUntil, days_added: item.days };
-}
-
-function cryptoRandomDigits() {
-    return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function cryptoRandomCode() {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // O/0, I/1 yok
-    let out = "";
-    for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
-    return out;
+        await client.query("commit");
+        return { ok: true, premium_until: newUntil, days_added: Number(item.days) || 30 };
+    } catch (e) {
+        await client.query("rollback");
+        throw e;
+    } finally {
+        client.release();
+    }
 }

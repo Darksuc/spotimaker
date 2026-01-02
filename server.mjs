@@ -554,7 +554,7 @@ app.get("/api/spotify/status", async (req, res) => {
         return res.json({
             connected: true,
             user: { id: me.id, name: me.display_name },
-            premium: isPremium(me.id)
+            premium: await isPremium(me.id)
         });
     } catch (e) {
         return res.json({ connected: false, reason: "exception", message: String(e?.message || e) });
@@ -588,7 +588,7 @@ app.get("/api/me", async (req, res) => {
             return res.status(200).json({ ok: false, status: r.status, spotify_error: data });
         }
 
-        const premium = isPremium(data.id);
+        const premium = await isPremium(data.id);
 
         return res.status(200).json({
             ok: true,
@@ -652,8 +652,10 @@ app.get("/debug/spotify", async (req, res) => {
         return res.json({
             ok: true,
             me: { id: me.id, display_name: me.display_name },
-            premium: isPremium(String(me.id || "")),
-            sampleTopTracks: (tracks?.items || []).slice(0, 3).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim())
+            premium: await isPremium(String(me.id || "")),
+sampleTopTracks: (tracks?.items || []).slice(0, 3).map(
+    t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()
+)
         });
     } catch (e) {
         console.error(e);
@@ -722,7 +724,7 @@ Use this profile to personalize the playlist.
         try {
             if (spotifyToken) {
                 const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
-                if (meRes.ok && meRes.json?.id) premium = isPremium(meRes.json.id);
+                if (meRes.ok && meRes.json?.id) premium = await isPremium(meRes.json.id);
             }
         } catch (e) {
             console.error("premium check failed", e);
@@ -825,12 +827,12 @@ async function saveSpotifyPlaylist(req, res) {
         if (!meInfo.ok) return res.status(401).json({ error: "Spotify /me failed" });
         const me = meInfo.me;
 
-        const premium = isPremium(String(me.id || ""));
+        const premium = await isPremium(String(me.id || ""));
 
         // Optional free save limit (keep your existing logic)
         try {
             if (!premium) {
-                const used = countSavedToday(String(me.id || ""));
+                const used = await countSavedToday(String(me.id || ""));
                 // ister sıkı yap, ister esnet:
                 // if (used >= 1) return res.status(402).json({ error: "Free plan daily save limit reached." });
                 // şimdilik sadece log:
@@ -881,7 +883,7 @@ async function saveSpotifyPlaylist(req, res) {
         }
 
         try {
-            markPlaylistSaved(me.id, `added=${uris.length}`);
+            await markPlaylistSaved(me.id, `added=${uris.length}`);
         } catch (e) {
             console.error("markPlaylistSaved failed:", e);
         }
@@ -965,8 +967,8 @@ app.get("/admin", (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
 
-        const stats = getStats();
-        const users = getUsers(200);
+        const stats = await getStats();
+        const users = await getUsers(200);
 
         const row = (u) => `
       <tr>
