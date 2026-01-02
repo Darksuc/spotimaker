@@ -384,12 +384,9 @@ app.get("/admin", async (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
 
-        // getStats / getUsers async olabilir -> await güvenli
         const stats = await getStats();
 
         const usersRaw = await getUsers(200);
-
-        // normalize: array değilse array'e çevir
         const usersArr = Array.isArray(usersRaw)
             ? usersRaw
             : (usersRaw && Array.isArray(usersRaw.users))
@@ -407,7 +404,7 @@ app.get("/admin", async (req, res) => {
         <td style="text-align:right">${Number(u.playlists_created || 0)}</td>
         <td style="text-align:right">${Number(u.playlists_saved || 0)}</td>
         <td style="text-align:right">${Number(u.logins || 0)}</td>
-        <td style="text-align:right">${Number(u.premium_until || 0)}</td>
+        <td style="text-align:right">${u.premium_until ? new Date(Number(u.premium_until)).toLocaleString() : ""}</td>
       </tr>
     `;
 
@@ -425,15 +422,65 @@ app.get("/admin", async (req, res) => {
     table{width:100%; border-collapse:collapse;}
     th,td{border-bottom:1px solid #eee; padding:10px; font-size:14px;}
     th{text-align:left; background:#fafafa; position:sticky; top:0;}
+    input{border:1px solid #ccc; border-radius:10px;}
+    button{border:1px solid #111; border-radius:10px; cursor:pointer;}
   </style>
 </head>
 <body>
   <h1>Spotimaker Admin</h1>
+
   <div class="cards">
-    <div class="card"><b>Total users</b><div>${stats.totalUsers ?? "-"}</div></div>
-    <div class="card"><b>Active 24h</b><div>${stats.active24h ?? "-"}</div></div>
-    <div class="card"><b>Total events</b><div>${stats.totalEvents ?? "-"}</div></div>
+    <div class="card"><b>Total users</b><div>${stats?.totalUsers ?? "-"}</div></div>
+    <div class="card"><b>Active 24h</b><div>${stats?.active24h ?? "-"}</div></div>
+    <div class="card"><b>Total events</b><div>${stats?.totalEvents ?? "-"}</div></div>
   </div>
+
+  <div class="card" style="margin:14px 0;">
+    <h3 style="margin:0 0 10px 0;">Premium Kod Üret</h3>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <label>Gün:
+        <input id="days" type="number" value="30" min="1" style="width:90px; padding:8px;" />
+      </label>
+      <label>Kullanım:
+        <input id="uses" type="number" value="1" min="1" style="width:90px; padding:8px;" />
+      </label>
+      <label>Not:
+        <input id="note" type="text" placeholder="Hediye / promo vs" style="min-width:220px; padding:8px;" />
+      </label>
+      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod üret</button>
+    </div>
+    <div id="codeOut" style="margin-top:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;"></div>
+    <div style="color:#666; font-size:12px; margin-top:6px;">
+      Not: Bu sayfa ADMIN_TOKEN ister. URL’ye ?token=ADMIN_TOKEN ekleyebilirsin.
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById("createCodeBtn");
+    const out = document.getElementById("codeOut");
+
+    btn.onclick = async () => {
+      out.textContent = "Üretiliyor...";
+      try {
+        const days = Number(document.getElementById("days").value || 30);
+        const max_uses = Number(document.getElementById("uses").value || 1);
+        const note = String(document.getElementById("note").value || "");
+
+        const r = await fetch("/api/admin/codes/create" + location.search, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ days, max_uses, note })
+        });
+
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || "Kod üretilemedi");
+
+        out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + j.code + "</span>";
+      } catch (e) {
+        out.textContent = "Hata: " + (e.message || e);
+      }
+    };
+  </script>
 
   <h2>Users (latest first)</h2>
   <table>
