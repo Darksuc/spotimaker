@@ -385,7 +385,7 @@ app.get("/login", (req, res) => {
         const state = crypto.randomBytes(12).toString("hex");
         setCookie(res, "spotify_state", state, 10 * 60 * 1000);
 
-        const scopes = [
+        const scope = [
             "user-read-private",
             "user-read-email",
             "user-top-read",
@@ -411,7 +411,7 @@ app.get("/login", (req, res) => {
             show_dialog: force ? "true" : "false",
             response_type: "code",
             client_id: clientId,
-            scope: scopes,
+            scope: scope,
             redirect_uri: redirectUri,
             state
         });
