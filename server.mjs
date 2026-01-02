@@ -339,6 +339,14 @@ async function getSpotifyMeId(req, res) {
 /* -----------------------------
    ROUTES
 ------------------------------ */
+app.get("/api/debug/env", (req, res) => {
+    res.json({
+        NODE_ENV: process.env.NODE_ENV || null,
+        x_forwarded_proto: req.headers["x-forwarded-proto"] || null,
+        protocol: req.protocol,
+        secure: req.secure
+    });
+});
 
 // Home
 app.get("/", (req, res) => {
