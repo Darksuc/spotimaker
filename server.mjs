@@ -967,8 +967,8 @@ app.get("/admin", (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
 
-        const stats = await getStats();
-        const users = await getUsers(200);
+        const stats = getStats();
+        const users =  getUsers(200);
 
         const row = (u) => `
       <tr>
