@@ -380,6 +380,86 @@ async function getSpotifyMeId(req, res) {
 /* -----------------------------
    ROUTES
 ------------------------------ */
+app.get("/admin", async (req, res) => {
+    try {
+        if (!requireAdmin(req, res)) return;
+
+        // getStats / getUsers async olabilir -> await güvenli
+        const stats = await getStats();
+
+        const usersRaw = await getUsers(200);
+
+        // normalize: array değilse array'e çevir
+        const usersArr = Array.isArray(usersRaw)
+            ? usersRaw
+            : (usersRaw && Array.isArray(usersRaw.users))
+                ? usersRaw.users
+                : (usersRaw && typeof usersRaw === "object")
+                    ? Object.values(usersRaw)
+                    : [];
+
+        const row = (u) => `
+      <tr>
+        <td>${escapeHtml(u.display_name || "")}</td>
+        <td>${escapeHtml(u.spotify_id || "")}</td>
+        <td>${u.first_seen ? new Date(u.first_seen).toLocaleString() : ""}</td>
+        <td>${u.last_seen ? new Date(u.last_seen).toLocaleString() : ""}</td>
+        <td style="text-align:right">${Number(u.playlists_created || 0)}</td>
+        <td style="text-align:right">${Number(u.playlists_saved || 0)}</td>
+        <td style="text-align:right">${Number(u.logins || 0)}</td>
+        <td style="text-align:right">${Number(u.premium_until || 0)}</td>
+      </tr>
+    `;
+
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        return res.send(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Spotimaker Admin</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial; padding:24px; max-width:1100px; margin:0 auto;}
+    .cards{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+    .card{border:1px solid #ddd; border-radius:12px; padding:12px 14px; min-width:180px;}
+    table{width:100%; border-collapse:collapse;}
+    th,td{border-bottom:1px solid #eee; padding:10px; font-size:14px;}
+    th{text-align:left; background:#fafafa; position:sticky; top:0;}
+  </style>
+</head>
+<body>
+  <h1>Spotimaker Admin</h1>
+  <div class="cards">
+    <div class="card"><b>Total users</b><div>${stats.totalUsers ?? "-"}</div></div>
+    <div class="card"><b>Active 24h</b><div>${stats.active24h ?? "-"}</div></div>
+    <div class="card"><b>Total events</b><div>${stats.totalEvents ?? "-"}</div></div>
+  </div>
+
+  <h2>Users (latest first)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Display name</th>
+        <th>Spotify ID</th>
+        <th>First seen</th>
+        <th>Last seen</th>
+        <th>Created</th>
+        <th>Saved</th>
+        <th>Logins</th>
+        <th>Premium until</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(usersArr || []).map(row).join("")}
+    </tbody>
+  </table>
+</body>
+</html>`);
+    } catch (e) {
+        console.error("ADMIN ERROR:", e);
+        return res.status(500).send("Admin crashed. Check logs.");
+    }
+});
 
 // Home
 app.get("/", (req, res) => {
