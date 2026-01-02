@@ -57,8 +57,28 @@ export async function initDb() {
     await pool.query(sql);
 }
 
+// --- Lazy init: server çağırmasa bile DB hazır olsun ---
+let _initPromise = null;
+async function ensureDbReady() {
+    if (!_initPromise) _initPromise = initDb();
+    await _initPromise;
+}
+
+// --- küçük yardımcı: user yoksa event insert FK patlatmasın ---
+async function ensureUserExists(spotify_id) {
+    const ts = now();
+    await pool.query(
+        `insert into users (spotify_id, display_name, first_seen, last_seen, logins)
+     values ($1, '', $2, $2, 0)
+     on conflict (spotify_id) do nothing`,
+        [String(spotify_id), ts]
+    );
+}
+
 // --- USERS ---
 export async function upsertUser({ spotify_id, display_name }) {
+    await ensureDbReady();
+
     const ts = now();
     const name = String(display_name || "");
 
@@ -76,6 +96,8 @@ export async function upsertUser({ spotify_id, display_name }) {
 }
 
 async function getPremiumUntil(spotify_id) {
+    await ensureDbReady();
+
     const r = await pool.query(
         `select premium_until from users where spotify_id=$1`,
         [String(spotify_id)]
@@ -84,6 +106,8 @@ async function getPremiumUntil(spotify_id) {
 }
 
 async function setPremiumUntil(spotify_id, premium_until) {
+    await ensureDbReady();
+
     const r = await pool.query(
         `update users set premium_until=$2 where spotify_id=$1`,
         [String(spotify_id), Number(premium_until || 0)]
@@ -98,42 +122,55 @@ export async function isPremium(spotify_id) {
 
 // --- EVENTS / STATS ---
 export async function markPlaylistCreated(spotify_id, meta = "") {
+    await ensureDbReady();
+
     const ts = now();
+    const sid = String(spotify_id);
+
+    // FK patlamasın diye garanti user
+    await ensureUserExists(sid);
 
     await pool.query(
         `update users
      set playlists_created = playlists_created + 1,
          last_seen = $2
      where spotify_id = $1`,
-        [String(spotify_id), ts]
+        [sid, ts]
     );
 
     await pool.query(
         `insert into events (spotify_id, type, ts, meta)
      values ($1, 'playlist_created', $2, $3)`,
-        [String(spotify_id), ts, { meta }]
+        [sid, ts, { meta }]
     );
 }
 
 export async function markPlaylistSaved(spotify_id, meta = "") {
+    await ensureDbReady();
+
     const ts = now();
+    const sid = String(spotify_id);
+
+    await ensureUserExists(sid);
 
     await pool.query(
         `update users
      set playlists_saved = playlists_saved + 1,
          last_seen = $2
      where spotify_id = $1`,
-        [String(spotify_id), ts]
+        [sid, ts]
     );
 
     await pool.query(
         `insert into events (spotify_id, type, ts, meta)
      values ($1, 'playlist_saved', $2, $3)`,
-        [String(spotify_id), ts, { meta }]
+        [sid, ts, { meta }]
     );
 }
 
 export async function getUsers(limit = 200) {
+    await ensureDbReady();
+
     const lim = Math.max(1, Math.min(1000, Number(limit) || 200));
     const r = await pool.query(
         `select * from users order by last_seen desc limit $1`,
@@ -143,9 +180,11 @@ export async function getUsers(limit = 200) {
 }
 
 export async function getStats() {
+    await ensureDbReady();
+
     const [u, e] = await Promise.all([
         pool.query(`select count(*)::int as n from users`),
-        pool.query(`select count(*)::int as n from events`)
+        pool.query(`select count(*)::int as n from events`),
     ]);
 
     const totalUsers = u.rows[0]?.n || 0;
@@ -160,12 +199,14 @@ export async function getStats() {
     return {
         totalUsers,
         totalEvents,
-        active24h: a.rows[0]?.n || 0
+        active24h: a.rows[0]?.n || 0,
     };
 }
 
 // MVP: son 3 günü çekip JS'te sayıyoruz (küçük kullanımda yeterli, stabil)
 export async function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") {
+    await ensureDbReady();
+
     const since = now() - 3 * 24 * 60 * 60 * 1000;
     const r = await pool.query(
         `select ts from events
@@ -184,29 +225,6 @@ export async function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") 
 }
 
 // --- REDEEM CODES ---
-export function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
-    const codes = readJson(CODES_PATH, {});
-
-    const code = cryptoRandomCode() + "-" + cryptoRandomDigits();
-    const created_ts = Date.now();
-    const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
-
-    const item = {
-        code,
-        created_ts,
-        expires_ts,
-        days: Number(days) || 30,
-        max_uses: Number(max_uses) || 1,
-        used_count: 0,
-        note: String(note || "")
-    };
-
-    codes[code] = item;
-    writeJson(CODES_PATH, codes);
-
-    return item; //  BU SATIR KRİTİK
-}
-
 function normalizeCode(s) {
     return String(s || "").trim().toUpperCase();
 }
@@ -220,8 +238,50 @@ function cryptoRandomCode() {
     return out;
 }
 
+// NOT: Bu artık DB’ye yazdığı için async.
+// Çağıran yerde: const item = await createRedeemCode(...)
+export async function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
+    await ensureDbReady();
+
+    const created_ts = now();
+    const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
+
+    // Çakışma ihtimaline karşı birkaç deneme
+    for (let attempt = 0; attempt < 10; attempt++) {
+        const raw = cryptoRandomCode() + "-" + cryptoRandomDigits();
+        const code = normalizeCode(raw);
+
+        const item = {
+            code,
+            created_ts,
+            expires_ts,
+            days: Number(days) || 30,
+            max_uses: Number(max_uses) || 1,
+            used_count: 0,
+            note: String(note || ""),
+        };
+
+        try {
+            await pool.query(
+                `insert into redeem_codes (code, created_ts, expires_ts, days, max_uses, used_count, note)
+         values ($1,$2,$3,$4,$5,$6,$7)`,
+                [item.code, item.created_ts, item.expires_ts, item.days, item.max_uses, item.used_count, item.note]
+            );
+            return item; //  BU SATIR KRİTİK
+        } catch (e) {
+            // unique violation -> yeniden dene
+            const msg = String(e?.message || "");
+            if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) continue;
+            throw e;
+        }
+    }
+
+    throw new Error("Redeem code üretilemedi (çok fazla çakışma).");
+}
 
 export async function redeemCode(codeRaw, spotify_id) {
+    await ensureDbReady();
+
     const code = normalizeCode(codeRaw);
     const ts = now();
 

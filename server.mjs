@@ -1,11 +1,17 @@
-﻿import express from "express";
+﻿// server.mjs (fixed)
+
+// --- core ---
+import express from "express";
 import OpenAI from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
 
+// --- db (single source of truth) ---
 import {
+    pool,
+    initDb,
     upsertUser,
     markPlaylistCreated,
     markPlaylistSaved,
@@ -16,25 +22,15 @@ import {
     createRedeemCode,
     redeemCode
 } from "./db.mjs";
-import { pool, initDb, getStats } from "./db.mjs";
-
-app.get("/api/admin/db-check", async (req, res) => {
-    try {
-        // admin koruman varsa burada çağır
-        // if (!requireAdmin(req, res)) return;
-
-        await initDb(); // tablo garanti
-        const stats = await getStats();
-        const db = await pool.query("select current_database() as db, now() as now");
-        res.json({ ok: true, stats, db: db.rows[0] });
-    } catch (e) {
-        res.status(500).json({ ok: false, error: String(e?.message || e) });
-    }
-});
 
 // --- paths ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// --- express ---
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // --- OpenAI client ---
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -42,61 +38,6 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ---- simple in-memory cache for Spotify profile (MVP) ----
 const spotifyProfileCache = new Map(); // key: access_token -> { text, ts }
 const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 min
-import pg from "pg";
-const { Pool } = pg;
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
-});
-
-async function initDb() {
-    if (!process.env.DATABASE_URL) {
-        console.warn("DATABASE_URL missing: skipping DB init");
-        return;
-    }
-
-    const sql = `
-  create table if not exists users (
-    spotify_id text primary key,
-    display_name text not null default '',
-    first_seen bigint not null,
-    last_seen bigint not null,
-    playlists_created int not null default 0,
-    playlists_saved int not null default 0,
-    logins int not null default 0,
-    premium_until bigint not null default 0
-  );
-
-  create table if not exists events (
-    id bigserial primary key,
-    spotify_id text not null references users(spotify_id) on delete cascade,
-    type text not null,
-    ts bigint not null,
-    meta jsonb not null default '{}'::jsonb
-  );
-
-  create index if not exists idx_events_user_type_ts
-  on events (spotify_id, type, ts desc);
-
-  create table if not exists redeem_codes (
-    code text primary key,
-    created_ts bigint not null,
-    expires_ts bigint not null,
-    days int not null,
-    max_uses int not null,
-    used_count int not null default 0,
-    note text not null default ''
-  );
-  `;
-
-    await pool.query(sql);
-    console.log("DB_INIT_OK");
-}
-
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 /* -----------------------------
    Cookie helpers (HttpOnly)
@@ -173,9 +114,6 @@ function buildEnergyCurve(n) {
     const arr = [];
     if (!Number.isFinite(n) || n <= 0) return arr;
 
-    // 0-25%: ease-in (3->6)
-    // 25-70%: main peak (6->9)
-    // 70-100%: resolution (9->5)
     for (let i = 0; i < n; i++) {
         const x = i / Math.max(1, n - 1);
         let v;
@@ -273,11 +211,7 @@ async function refreshSpotifyAccessToken(req, res) {
 async function getValidSpotifyToken(req, res) {
     const token = getCookie(req, "spotify_access_token");
     const exp = Number(getCookie(req, "spotify_expires_at") || 0);
-
-    // token varsa ve bitmeye 60sn’den fazla varsa OK
     if (token && exp && (exp - Date.now() > 60_000)) return token;
-
-    // token yok / bitiyor -> refresh dene
     return await refreshSpotifyAccessToken(req, res);
 }
 
@@ -347,13 +281,11 @@ async function spotifyCreatePlaylist(req, res, userId, title, description) {
         public: false
     });
 
-    const r = await spotifyFetch(req, res, `https://api.spotify.com/v1/users/${encodeURIComponent(userId)}/playlists`, {
+    return await spotifyFetch(req, res, `https://api.spotify.com/v1/users/${encodeURIComponent(userId)}/playlists`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body
     });
-
-    return r;
 }
 
 async function spotifySearchTrack(req, res, q) {
@@ -399,6 +331,20 @@ async function getSpotifyMeId(req, res) {
 // Home
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Health/db sanity (admin)
+app.get("/api/admin/db-check", async (req, res) => {
+    try {
+        if (!requireAdmin(req, res)) return;
+
+        await initDb();
+        const stats = await getStats();
+        const db = await pool.query("select current_database() as db, now() as now");
+        res.json({ ok: true, stats, db: db.rows[0] });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: String(e?.message || e) });
+    }
 });
 
 // Spotify OAuth start
@@ -481,14 +427,14 @@ app.get("/callback", async (req, res) => {
             return res.status(500).send("Token exchange failed");
         }
 
-        // user upsert
+        // user upsert (IMPORTANT: await)
         try {
             const meRes = await fetch("https://api.spotify.com/v1/me", {
                 headers: { Authorization: `Bearer ${data.access_token}` }
             });
             const me = await meRes.json();
             if (me?.id) {
-                upsertUser({ spotify_id: me.id, display_name: me.display_name });
+                await upsertUser({ spotify_id: me.id, display_name: me.display_name });
                 console.log("LOGIN_EVENT", { spotify_id: me.id, display_name: me.display_name || null, time: new Date().toISOString() });
             }
         } catch (e) {
@@ -576,7 +522,7 @@ app.get("/api/spotify/status", async (req, res) => {
     }
 });
 
-// /api/me (clean, no nested routes)
+// /api/me
 app.get("/api/me", async (req, res) => {
     try {
         let token = await getValidSpotifyToken(req, res);
@@ -648,7 +594,7 @@ app.get("/spotify/top", async (req, res) => {
     }
 });
 
-// Debug spotify (quick sanity)
+// Debug spotify
 app.get("/debug/spotify", async (req, res) => {
     const token = await getValidSpotifyToken(req, res);
     if (!token) return res.status(401).json({ error: "Spotify not connected" });
@@ -668,9 +614,9 @@ app.get("/debug/spotify", async (req, res) => {
             ok: true,
             me: { id: me.id, display_name: me.display_name },
             premium: await isPremium(String(me.id || "")),
-sampleTopTracks: (tracks?.items || []).slice(0, 3).map(
-    t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()
-)
+            sampleTopTracks: (tracks?.items || []).slice(0, 3).map(
+                t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()
+            )
         });
     } catch (e) {
         console.error(e);
@@ -679,7 +625,7 @@ sampleTopTracks: (tracks?.items || []).slice(0, 3).map(
 });
 
 /* -----------------------------
-   AI generate (CLEAN)
+   AI generate
 ------------------------------ */
 app.post("/api/generate", async (req, res) => {
     const userText = String(req.body?.text ?? "").trim();
@@ -816,7 +762,7 @@ ${spotifyProfileText}
         try {
             if (spotifyToken) {
                 const meId = await getSpotifyMeId(req, res);
-                if (meId) markPlaylistCreated(meId, `count=${requestedCount}`);
+                if (meId) await markPlaylistCreated(meId, `count=${requestedCount}`);
             }
         } catch (e) {
             console.error("markPlaylistCreated failed:", e);
@@ -844,13 +790,9 @@ async function saveSpotifyPlaylist(req, res) {
 
         const premium = await isPremium(String(me.id || ""));
 
-        // Optional free save limit (keep your existing logic)
         try {
             if (!premium) {
                 const used = await countSavedToday(String(me.id || ""));
-                // ister sıkı yap, ister esnet:
-                // if (used >= 1) return res.status(402).json({ error: "Free plan daily save limit reached." });
-                // şimdilik sadece log:
                 if (used >= 1) console.log("FREE_SAVE_LIMIT_WARNING", { me: me.id, used });
             }
         } catch (e) {
@@ -879,7 +821,6 @@ async function saveSpotifyPlaylist(req, res) {
         for (const t of tracks) {
             const artist = normalizeStr(t?.artist);
             const song = normalizeStr(t?.song);
-
             if (!artist || !song) continue;
 
             const q = `track:${song} artist:${artist}`;
@@ -918,6 +859,8 @@ async function saveSpotifyPlaylist(req, res) {
 
 app.post("/spotify/save", saveSpotifyPlaylist);
 app.post("/api/spotify/save", saveSpotifyPlaylist);
+
+// DB tables sanity
 app.get("/api/debug/db", async (req, res) => {
     try {
         const r = await pool.query(`select to_regclass('public.users') as users,
@@ -942,7 +885,7 @@ app.post("/api/admin/codes/create", async (req, res) => {
         const max_uses = Number(req.body?.max_uses ?? 1);
         const note = String(req.body?.note ?? "");
 
-        const codeObj = await createRedeemCode({ days, max_uses, note }); // <-- await
+        const codeObj = await createRedeemCode({ days, max_uses, note });
 
         return res.json({
             ok: true,
@@ -955,27 +898,30 @@ app.post("/api/admin/codes/create", async (req, res) => {
     }
 });
 
+// Kullanıcı redeem
 app.post("/api/redeem", async (req, res) => {
     try {
         const spotify_id = await getSpotifyMeId(req, res);
         if (!spotify_id) return res.status(401).json({ ok: false, error: "Once Spotify’a giris yap." });
 
         const code = String(req.body?.code || "");
-        const result = redeemCode(code, spotify_id);
-        if (!result.ok) return res.status(400).json(result);
+        const result = await redeemCode(code, spotify_id);
 
+        if (!result.ok) return res.status(400).json(result);
         return res.json({ ok: true, premium_until: result.premium_until, days_added: result.days_added });
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ ok: false, error: "redeem failed" });
+        return res.status(500).json({ ok: false, error: String(e?.message || e) });
     }
 });
 
 // Debug users (admin)
-app.get("/api/debug/users", (req, res) => {
+app.get("/api/debug/users", async (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
-        return res.json({ stats: getStats(), users: getUsers(20) });
+        const stats = await getStats();
+        const users = await getUsers(20);
+        return res.json({ stats, users });
     } catch (e) {
         console.error("DEBUG USERS ERROR:", e);
         return res.status(500).json({ error: "debug users crashed" });
@@ -987,8 +933,8 @@ app.get("/admin", async (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
 
-        const stats = await getStats();        // <-- await
-        const users = await getUsers(200);     // <-- await
+        const stats = await getStats();
+        const users = await getUsers(200);
 
         const row = (u) => `
       <tr>
@@ -1005,7 +951,18 @@ app.get("/admin", async (req, res) => {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         return res.send(`<!doctype html>
 <html>
-<head> ... </head>
+<head>
+  <meta charset="utf-8"/>
+  <title>Spotimaker Admin</title>
+  <style>
+    body{font-family:system-ui,Arial;margin:24px}
+    .cards{display:flex;gap:16px;margin:16px 0}
+    .card{padding:12px 14px;border:1px solid #ddd;border-radius:10px;min-width:160px}
+    table{border-collapse:collapse;width:100%;margin-top:16px}
+    th,td{border:1px solid #eee;padding:8px 10px;font-size:14px}
+    th{text-align:left;background:#fafafa}
+  </style>
+</head>
 <body>
   <h1>Spotimaker Admin</h1>
   <div class="cards">
@@ -1014,12 +971,17 @@ app.get("/admin", async (req, res) => {
     <div class="card"><b>Total events</b><div>${stats.totalEvents ?? 0}</div></div>
   </div>
 
-  ...
-
-  <tbody>
-    ${(Array.isArray(users) ? users : []).map(row).join("")}
-  </tbody>
-</table>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>Spotify ID</th><th>First seen</th><th>Last seen</th>
+        <th>Created</th><th>Saved</th><th>Logins</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(Array.isArray(users) ? users : []).map(row).join("")}
+    </tbody>
+  </table>
 </body>
 </html>`);
     } catch (e) {
@@ -1031,6 +993,7 @@ app.get("/admin", async (req, res) => {
 // Static LAST
 app.use(express.static(path.join(__dirname, "public")));
 
+// Boot
 const port = process.env.PORT || 8787;
 await initDb();
 
