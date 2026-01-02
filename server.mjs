@@ -380,133 +380,6 @@ async function getSpotifyMeId(req, res) {
 /* -----------------------------
    ROUTES
 ------------------------------ */
-app.get("/admin", async (req, res) => {
-    try {
-        if (!requireAdmin(req, res)) return;
-
-        const stats = await getStats();
-
-        const usersRaw = await getUsers(200);
-        const usersArr = Array.isArray(usersRaw)
-            ? usersRaw
-            : (usersRaw && Array.isArray(usersRaw.users))
-                ? usersRaw.users
-                : (usersRaw && typeof usersRaw === "object")
-                    ? Object.values(usersRaw)
-                    : [];
-
-        const row = (u) => `
-      <tr>
-        <td>${escapeHtml(u.display_name || "")}</td>
-        <td>${escapeHtml(u.spotify_id || "")}</td>
-        <td>${u.first_seen ? new Date(u.first_seen).toLocaleString() : ""}</td>
-        <td>${u.last_seen ? new Date(u.last_seen).toLocaleString() : ""}</td>
-        <td style="text-align:right">${Number(u.playlists_created || 0)}</td>
-        <td style="text-align:right">${Number(u.playlists_saved || 0)}</td>
-        <td style="text-align:right">${Number(u.logins || 0)}</td>
-        <td style="text-align:right">${u.premium_until ? new Date(Number(u.premium_until)).toLocaleString() : ""}</td>
-      </tr>
-    `;
-
-        res.setHeader("Content-Type", "text/html; charset=utf-8");
-        return res.send(`<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Spotimaker Admin</title>
-  <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial; padding:24px; max-width:1100px; margin:0 auto;}
-    .cards{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
-    .card{border:1px solid #ddd; border-radius:12px; padding:12px 14px; min-width:180px;}
-    table{width:100%; border-collapse:collapse;}
-    th,td{border-bottom:1px solid #eee; padding:10px; font-size:14px;}
-    th{text-align:left; background:#fafafa; position:sticky; top:0;}
-    input{border:1px solid #ccc; border-radius:10px;}
-    button{border:1px solid #111; border-radius:10px; cursor:pointer;}
-  </style>
-</head>
-<body>
-  <h1>Spotimaker Admin</h1>
-
-  <div class="cards">
-    <div class="card"><b>Total users</b><div>${stats?.totalUsers ?? "-"}</div></div>
-    <div class="card"><b>Active 24h</b><div>${stats?.active24h ?? "-"}</div></div>
-    <div class="card"><b>Total events</b><div>${stats?.totalEvents ?? "-"}</div></div>
-  </div>
-
-  <div class="card" style="margin:14px 0;">
-    <h3 style="margin:0 0 10px 0;">Premium Kod Üret</h3>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <label>Gün:
-        <input id="days" type="number" value="30" min="1" style="width:90px; padding:8px;" />
-      </label>
-      <label>Kullanım:
-        <input id="uses" type="number" value="1" min="1" style="width:90px; padding:8px;" />
-      </label>
-      <label>Not:
-        <input id="note" type="text" placeholder="Hediye / promo vs" style="min-width:220px; padding:8px;" />
-      </label>
-      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod üret</button>
-    </div>
-    <div id="codeOut" style="margin-top:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;"></div>
-    <div style="color:#666; font-size:12px; margin-top:6px;">
-      Not: Bu sayfa ADMIN_TOKEN ister. URL’ye ?token=ADMIN_TOKEN ekleyebilirsin.
-    </div>
-  </div>
-
-  <script>
-    const btn = document.getElementById("createCodeBtn");
-    const out = document.getElementById("codeOut");
-
-    btn.onclick = async () => {
-      out.textContent = "Üretiliyor...";
-      try {
-        const days = Number(document.getElementById("days").value || 30);
-        const max_uses = Number(document.getElementById("uses").value || 1);
-        const note = String(document.getElementById("note").value || "");
-
-        const r = await fetch("/api/admin/codes/create" + location.search, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ days, max_uses, note })
-        });
-
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(j.error || "Kod üretilemedi");
-
-        out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + j.code + "</span>";
-      } catch (e) {
-        out.textContent = "Hata: " + (e.message || e);
-      }
-    };
-  </script>
-
-  <h2>Users (latest first)</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Display name</th>
-        <th>Spotify ID</th>
-        <th>First seen</th>
-        <th>Last seen</th>
-        <th>Created</th>
-        <th>Saved</th>
-        <th>Logins</th>
-        <th>Premium until</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${(usersArr || []).map(row).join("")}
-    </tbody>
-  </table>
-</body>
-</html>`);
-    } catch (e) {
-        console.error("ADMIN ERROR:", e);
-        return res.status(500).send("Admin crashed. Check logs.");
-    }
-});
 
 // Home
 app.get("/", (req, res) => {
@@ -1055,7 +928,12 @@ app.post("/api/admin/codes/create", (req, res) => {
         const note = String(req.body?.note ?? "");
 
         const codeObj = createRedeemCode({ days, max_uses, note });
-        return res.json({ ok: true, code: codeObj.code, meta: codeObj });
+
+        return res.json({
+            ok: true,
+            code: codeObj.code,   // <- panelin istediği bu
+            meta: codeObj
+        });
     } catch (e) {
         console.error(e);
         return res.status(500).json({ ok: false, error: "code create failed" });
@@ -1095,7 +973,8 @@ app.get("/admin", (req, res) => {
         if (!requireAdmin(req, res)) return;
 
         const stats = getStats();
-        const users =  getUsers(200);
+        const usersRaw = getUsers(200);
+        const users = Array.isArray(usersRaw) ? usersRaw : Object.values(usersRaw || {});
 
         const row = (u) => `
       <tr>
@@ -1173,7 +1052,9 @@ app.get("/admin", (req, res) => {
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || "Kod uretilemedi");
 
-        out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + j.code + "</span>";
+const code = j.code || j.meta?.code || j.data?.code || j.redeem_code;
+if (!code) throw new Error("API code donmedi: " + JSON.stringify(j));
+out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + code + "</span>";
       } catch (e) {
         out.textContent = "Hata: " + (e.message || e);
       }
