@@ -228,19 +228,15 @@ async function refreshSpotifyAccessToken(req, res) {
 async function getValidSpotifyToken(req, res) {
     const token = getCookie(req, "spotify_access_token");
     const exp = Number(getCookie(req, "spotify_expires_at") || 0);
-    async function getValidSpotifyToken(req, res) {
-        const token = getCookie(req, "spotify_access_token");
-        const exp = Number(getCookie(req, "spotify_expires_at") || 0);
 
-        // ✅ token varsa ama exp yoksa: token'ı kullan (refresh'e zorlama)
-        if (token && !exp) return token;
+    // token var ama exp yoksa → token'ı kullan
+    if (token && !exp) return token;
 
-        // token varsa ve bitmeye 60sn’den fazla varsa OK
-        if (token && exp && (exp - Date.now() > 60_000)) return token;
+    // token var ve 60 sn'den fazla süresi varsa → OK
+    if (token && exp && (exp - Date.now() > 60_000)) return token;
 
-        // token yok / bitiyor -> refresh dene
-        return await refreshSpotifyAccessToken(req, res);
-    }
+    // token yok ya da süresi dolmak üzere → refresh dene
+    return await refreshSpotifyAccessToken(req, res);
 }
 
 async function requireSpotifyToken(req, res) {
