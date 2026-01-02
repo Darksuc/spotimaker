@@ -372,7 +372,7 @@ app.get("/login", (req, res) => {
             return res.status(500).send("Sunucu ayarı eksik: CLIENT_ID / REDIRECT_URI yok.");
         }
 
-        const force = String(req.query.force || "") === "1";
+        const force = String(req.query.force || "1") === "1";
 
         const params = querystring.stringify({
             show_dialog: force ? "true" : "false",
@@ -426,6 +426,11 @@ app.get("/callback", async (req, res) => {
             console.error("Spotify token error:", data);
             return res.status(500).send("Token exchange failed");
         }
+        // === A SEÇENEĞİ: ESKİ SPOTIFY COOKIE'LERİNİ TEMİZLE ===
+        // hesap değiştirirken eski token/scope karışmasını önler
+        clearCookie(res, req, "spotify_access_token");
+        clearCookie(res, req, "spotify_refresh_token");
+        clearCookie(res, req, "spotify_expires_at");
 
         // user upsert (IMPORTANT: await)
         try {
@@ -447,7 +452,14 @@ app.get("/callback", async (req, res) => {
         const expiresAt = Date.now() + expiresIn * 1000;
 
         setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
-        if (data.refresh_token) setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
+
+        if (data.refresh_token) {
+            setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
+        } else {
+            // Spotify bazen refresh_token yollamaz; eski refresh_token kalırsa hesap/scope karışır
+            clearCookie(res, req, "spotify_refresh_token");
+        }
+
         setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
 
         return res.redirect("/");
@@ -478,6 +490,8 @@ app.get("/switch-account", (req, res) => {
         clearCookie(res, req, "spotify_refresh_token");
         clearCookie(res, req, "spotify_expires_at");
         clearCookie(res, req, "spotify_state");
+
+        // 🔥 KRİTİK SATIR
         return res.redirect(302, "/login?force=1");
     } catch (e) {
         console.error("switch-account failed:", e);
@@ -508,7 +522,18 @@ app.get("/api/spotify/status", async (req, res) => {
         });
 
         if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
-        if (r.status === 403) return res.json({ connected: false, reason: "insufficient_scope" });
+        if (r.status === 403) {
+            // scope karıştıysa kullanıcıyı temiz bir force-login’e zorla
+            clearCookie(res, req, "spotify_access_token");
+            clearCookie(res, req, "spotify_refresh_token");
+            clearCookie(res, req, "spotify_expires_at");
+
+            return res.json({
+                connected: false,
+                reason: "insufficient_scope",
+                login_url: "/login?force=1"
+            });
+        }
         if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
 
         const me = await r.json();
