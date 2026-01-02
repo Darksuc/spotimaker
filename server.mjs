@@ -901,6 +901,16 @@ async function saveSpotifyPlaylist(req, res) {
 
 app.post("/spotify/save", saveSpotifyPlaylist);
 app.post("/api/spotify/save", saveSpotifyPlaylist);
+app.get("/api/debug/db", async (req, res) => {
+    try {
+        const r = await pool.query(`select to_regclass('public.users') as users,
+                                       to_regclass('public.events') as events,
+                                       to_regclass('public.redeem_codes') as redeem_codes`);
+        res.json({ ok: true, tables: r.rows[0] });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: String(e?.message || e) });
+    }
+});
 
 /* -----------------------------
    Redeem + admin
