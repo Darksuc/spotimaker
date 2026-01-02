@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "openai": "^4.0.0"
+    "openai": "^4.0.0",
+    "pg": "^8.16.3"
   }
 }

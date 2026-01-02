@@ -27,6 +27,57 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ---- simple in-memory cache for Spotify profile (MVP) ----
 const spotifyProfileCache = new Map(); // key: access_token -> { text, ts }
 const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 min
+import pg from "pg";
+const { Pool } = pg;
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
+});
+
+async function initDb() {
+    if (!process.env.DATABASE_URL) {
+        console.warn("DATABASE_URL missing: skipping DB init");
+        return;
+    }
+
+    const sql = `
+  create table if not exists users (
+    spotify_id text primary key,
+    display_name text not null default '',
+    first_seen bigint not null,
+    last_seen bigint not null,
+    playlists_created int not null default 0,
+    playlists_saved int not null default 0,
+    logins int not null default 0,
+    premium_until bigint not null default 0
+  );
+
+  create table if not exists events (
+    id bigserial primary key,
+    spotify_id text not null references users(spotify_id) on delete cascade,
+    type text not null,
+    ts bigint not null,
+    meta jsonb not null default '{}'::jsonb
+  );
+
+  create index if not exists idx_events_user_type_ts
+  on events (spotify_id, type, ts desc);
+
+  create table if not exists redeem_codes (
+    code text primary key,
+    created_ts bigint not null,
+    expires_ts bigint not null,
+    days int not null,
+    max_uses int not null,
+    used_count int not null default 0,
+    note text not null default ''
+  );
+  `;
+
+    await pool.query(sql);
+    console.log("DB_INIT_OK");
+}
 
 const app = express();
 app.use(express.json());
@@ -1019,6 +1070,8 @@ app.get("/admin", (req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 const port = process.env.PORT || 8787;
+await initDb();
+
 app.listen(port, () => {
     console.log(`Spotimaker running on http://localhost:${port}`);
 });
