@@ -385,12 +385,13 @@ app.get("/login", (req, res) => {
         const state = crypto.randomBytes(12).toString("hex");
         setCookie(res, "spotify_state", state, 10 * 60 * 1000);
 
-        const scope = [
+        const scopes = [
             "user-read-private",
             "user-read-email",
             "user-top-read",
-            "playlist-modify-public",
-            "playlist-modify-private"
+            "user-read-recently-played",
+            "playlist-modify-private",
+            "playlist-modify-public"
         ].join(" ");
 
         const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
@@ -404,13 +405,13 @@ app.get("/login", (req, res) => {
             return res.status(500).send("Sunucu ayarı eksik: CLIENT_ID / REDIRECT_URI yok.");
         }
 
-        const force = String(req.query.force || "1") === "1";
+        const force = String(req.query.force || "") === "1";
 
         const params = querystring.stringify({
             show_dialog: force ? "true" : "false",
             response_type: "code",
             client_id: clientId,
-            scope,
+            scope: scopes,
             redirect_uri: redirectUri,
             state
         });
