@@ -1,6 +1,6 @@
-// db.mjs (Postgres)
+ï»¿// db.mjs (Postgres)
 // Bu dosya: upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats,
-// isPremium, countSavedToday, createRedeemCode, redeemCode fonksiyonlarýný export eder.
+// isPremium, countSavedToday, createRedeemCode, redeemCode fonksiyonlarÄ±nÄ± export eder.
 
 import pg from "pg";
 const { Pool } = pg;
@@ -164,7 +164,7 @@ export async function getStats() {
     };
 }
 
-// MVP: son 3 günü çekip JS'te sayýyoruz (küçük kullanýmda yeterli, stabil)
+// MVP: son 3 gÃ¼nÃ¼ Ã§ekip JS'te sayÄ±yoruz (kÃ¼Ã§Ã¼k kullanÄ±mda yeterli, stabil)
 export async function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") {
     const since = now() - 3 * 24 * 60 * 60 * 1000;
     const r = await pool.query(
@@ -184,6 +184,29 @@ export async function countSavedToday(spotify_id, timeZone = "Europe/Istanbul") 
 }
 
 // --- REDEEM CODES ---
+export function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
+    const codes = readJson(CODES_PATH, {});
+
+    const code = cryptoRandomCode() + "-" + cryptoRandomDigits();
+    const created_ts = Date.now();
+    const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
+
+    const item = {
+        code,
+        created_ts,
+        expires_ts,
+        days: Number(days) || 30,
+        max_uses: Number(max_uses) || 1,
+        used_count: 0,
+        note: String(note || "")
+    };
+
+    codes[code] = item;
+    writeJson(CODES_PATH, codes);
+
+    return item; //  BU SATIR KRÄ°TÄ°K
+}
+
 function normalizeCode(s) {
     return String(s || "").trim().toUpperCase();
 }
@@ -197,29 +220,6 @@ function cryptoRandomCode() {
     return out;
 }
 
-export async function createRedeemCode({ days = 30, max_uses = 1, expires_in_days = 365, note = "" } = {}) {
-    const code = cryptoRandomCode() + "-" + cryptoRandomDigits();
-    const created_ts = now();
-    const expires_ts = created_ts + Number(expires_in_days) * 24 * 60 * 60 * 1000;
-
-    const obj = {
-        code,
-        created_ts,
-        expires_ts,
-        days: Number(days) || 30,
-        max_uses: Number(max_uses) || 1,
-        used_count: 0,
-        note: String(note || "")
-    };
-
-    await pool.query(
-        `insert into redeem_codes (code, created_ts, expires_ts, days, max_uses, used_count, note)
-     values ($1,$2,$3,$4,$5,0,$6)`,
-        [obj.code, obj.created_ts, obj.expires_ts, obj.days, obj.max_uses, obj.note]
-    );
-
-    return obj;
-}
 
 export async function redeemCode(codeRaw, spotify_id) {
     const code = normalizeCode(codeRaw);
