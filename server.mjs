@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
+
 import {
     upsertUser,
     markPlaylistCreated,
@@ -15,59 +16,25 @@ import {
     createRedeemCode,
     redeemCode
 } from "./db.mjs";
-async function getSpotifyMeId(req, res) {
-    const token = await getValidSpotifyToken(req, res);
-    if (!token) return "";
-    try {
-        const meRes = await fetch("https://api.spotify.com/v1/me", {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const me = await meRes.json();
-        if (!meRes.ok) return "";
-        return String(me?.id || "");
-    } catch {
-        return "";
-    }
-}
-    
 
+// --- paths ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// --- OpenAI client ---
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ---- simple in-memory cache for Spotify profile (MVP) ----
-const spotifyProfileCache = new Map();
-// key: spotify_access_token
-// value: { text: string, ts: number }
-const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 minutes
+const spotifyProfileCache = new Map(); // key: access_token -> { text, ts }
+const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 min
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- cookie helpers (MVP) ---
-function buildEnergyCurve(n) {
-    const arr = [];
-    if (!Number.isFinite(n) || n <= 0) return arr;
-
-    // 0-25%: ease-in (3->6)
-    // 25-70%: main peak (6->9)
-    // 70-100%: resolution (9->5)
-    for (let i = 0; i < n; i++) {
-        const x = i / Math.max(1, n - 1);
-        let v;
-
-        if (x < 0.25) {
-            v = 3 + Math.round(3 * (x / 0.25));
-        } else if (x < 0.70) {
-            v = 6 + Math.round(3 * ((x - 0.25) / 0.45));
-        } else {
-            v = 9 - Math.round(4 * ((x - 0.70) / 0.30));
-        }
-
-        arr.push(Math.max(1, Math.min(10, v)));
-    }
-    return arr;
-}
-
-
+/* -----------------------------
+   Cookie helpers (HttpOnly)
+------------------------------ */
 function getCookie(req, name) {
     const header = req.headers.cookie || "";
     const parts = header.split(";").map(v => v.trim());
@@ -75,6 +42,7 @@ function getCookie(req, name) {
     if (!found) return "";
     return decodeURIComponent(found.split("=").slice(1).join("="));
 }
+
 function setCookie(res, name, value, maxAgeMs) {
     const isProd = process.env.NODE_ENV === "production";
     const cookie = [
@@ -86,15 +54,10 @@ function setCookie(res, name, value, maxAgeMs) {
         isProd ? "Secure" : ""
     ].filter(Boolean).join("; ");
 
-    //  önemli: var olan Set-Cookie'leri EZME, üstüne EKLE
     const prev = res.getHeader("Set-Cookie");
-    if (!prev) {
-        res.setHeader("Set-Cookie", cookie);
-    } else if (Array.isArray(prev)) {
-        res.setHeader("Set-Cookie", [...prev, cookie]);
-    } else {
-        res.setHeader("Set-Cookie", [prev, cookie]);
-    }
+    if (!prev) res.setHeader("Set-Cookie", cookie);
+    else if (Array.isArray(prev)) res.setHeader("Set-Cookie", [...prev, cookie]);
+    else res.setHeader("Set-Cookie", [prev, cookie]);
 }
 
 function clearCookie(res, req, name) {
@@ -109,24 +72,60 @@ function clearCookie(res, req, name) {
     ].filter(Boolean).join("; ");
 
     const prev = res.getHeader("Set-Cookie");
-    if (!prev) {
-        res.setHeader("Set-Cookie", cookie);
-    } else if (Array.isArray(prev)) {
-        res.setHeader("Set-Cookie", [...prev, cookie]);
-    } else {
-        res.setHeader("Set-Cookie", [prev, cookie]);
-    }
+    if (!prev) res.setHeader("Set-Cookie", cookie);
+    else if (Array.isArray(prev)) res.setHeader("Set-Cookie", [...prev, cookie]);
+    else res.setHeader("Set-Cookie", [prev, cookie]);
 }
 
+/* -----------------------------
+   Admin helpers
+------------------------------ */
+function requireAdmin(req, res) {
+    const token = String(req.query.token || req.headers["x-admin-token"] || "");
+    if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+        res.status(401).send("Unauthorized");
+        return false;
+    }
+    return true;
+}
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+}
 
-// --- paths ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/* -----------------------------
+   Utility
+------------------------------ */
+function normalizeStr(s) {
+    return String(s || "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
 
-// --- OpenAI client ---
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function buildEnergyCurve(n) {
+    const arr = [];
+    if (!Number.isFinite(n) || n <= 0) return arr;
 
-// --- JSON Schema: Spotimaker playlist output ---
+    // 0-25%: ease-in (3->6)
+    // 25-70%: main peak (6->9)
+    // 70-100%: resolution (9->5)
+    for (let i = 0; i < n; i++) {
+        const x = i / Math.max(1, n - 1);
+        let v;
+
+        if (x < 0.25) v = 3 + Math.round(3 * (x / 0.25));
+        else if (x < 0.70) v = 6 + Math.round(3 * ((x - 0.25) / 0.45));
+        else v = 9 - Math.round(4 * ((x - 0.70) / 0.30));
+
+        arr.push(Math.max(1, Math.min(10, v)));
+    }
+    return arr;
+}
+
+/* -----------------------------
+   Schemas
+------------------------------ */
 const playlistSchema = {
     name: "spotimaker_playlist",
     schema: {
@@ -157,320 +156,13 @@ const playlistSchema = {
                 }
             }
         },
-        required: ["language", "title", "description", "vibe_tags",  "tracks"]
+        required: ["language", "title", "description", "vibe_tags", "tracks"]
     }
 };
 
-// --- ROUTES ---
-async function saveSpotifyPlaylist(req, res) {
-    try {
-        const title = String(req.body?.title || "").trim() || "Spotimaker Playlist";
-        const description = String(req.body?.description || "").trim();
-        const tracks = Array.isArray(req.body?.tracks) ? req.body.tracks : [];
-
-        if (tracks.length < 1) return res.status(400).json({ error: "No tracks provided" });
-
-        // 1) Get current user (AUTO refresh+retry via spotifyFetch)
-        const meResp = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
-        if (!meResp.ok) {
-            return res.status(meResp.status || 500).json({
-                error: "Failed to read Spotify profile",
-                details: meResp.json || meResp.text || null
-            });
-        }
-
-        const me = meResp.json;
-        if (!me?.id) return res.status(500).json({ error: "Spotify user id missing" });
-
-        // --- PREMIUM/FREE DAILY SAVE LIMIT ---
-        const premium = isPremium(me.id);
-        const FREE_DAILY_SAVE = 1;
-
-        if (!premium) {
-            const savedToday = countSavedToday(me.id, "Europe/Istanbul");
-            if (savedToday >= FREE_DAILY_SAVE) {
-                return res.status(429).json({
-                    error: "Free gunluk Spotify'a kaydetme limiti doldu. Premium ile limitsiz.",
-                    savedToday,
-                    limit: FREE_DAILY_SAVE
-                });
-            }
-        }
-
-        // 2) Create playlist (AUTO refresh+retry via spotifyFetch)
-        const createResp = await spotifyFetch(
-            req,
-            res,
-            `https://api.spotify.com/v1/users/${encodeURIComponent(me.id)}/playlists`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: title,
-                    description: description || "Made with Spotimaker",
-                    public: false
-                })
-            }
-        );
-
-        if (!createResp.ok) {
-            return res.status(createResp.status || 500).json({
-                error: "Failed to create playlist",
-                details: createResp.json || createResp.text || null
-            });
-        }
-
-        const created = createResp.json;
-        const playlistId = created?.id;
-        if (!playlistId) return res.status(500).json({ error: "Playlist id missing after create" });
-
-        // ---- helpers: normalize + concurrency-limited Spotify search ----
-        function normalizeStr(s) {
-            return String(s || "")
-                .replace(/\s+/g, " ")
-                .replace(/\((.*?)\)/g, "")
-                .replace(/\[(.*?)\]/g, "")
-                .replace(/feat\.?/ig, "")
-                .replace(/ft\.?/ig, "")
-                .replace(/–/g, "-")
-                .trim();
-        }
-
-        // ---- IMPORTANT: Bundan sonraki Spotify SEARCH + ADD calls da spotifyFetch kullanmalı ----
-        // Senin kodun devamında muhtemelen:
-        // - trackleri spotify'da arayıp URI çıkarıyorsun
-        // - sonra playlist'e ekliyorsun
-        //
-        // Aşağıdaki iki küçük helper'ı kullan:
-
-        async function spotifySearchTrack(query) {
-            const url = "https://api.spotify.com/v1/search?" + new URLSearchParams({
-                q: query,
-                type: "track",
-                limit: "1"
-            }).toString();
-
-            const r = await spotifyFetch(req, res, url);
-            if (!r.ok) return null;
-            const items = r.json?.tracks?.items || [];
-            return items[0] || null;
-        }
-
-        async function spotifyAddTracks(uris) {
-            // Spotify: 100 uri per request
-            for (let i = 0; i < uris.length; i += 100) {
-                const chunk = uris.slice(i, i + 100);
-                const r = await spotifyFetch(
-                    req,
-                    res,
-                    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ uris: chunk })
-                    }
-                );
-                if (!r.ok) {
-                    throw new Error("Failed to add tracks: " + JSON.stringify(r.json || r.text || r.status));
-                }
-            }
-        }
-
-        // ---- Senin mevcut akışın (tracks -> search -> uris) burada devam etmeli ----
-        // Şimdilik track listesi zaten uri ise direkt ekle:
-        const urisDirect = tracks
-            .map(t => (typeof t === "string" ? t : (t?.uri || t?.spotify_uri || (t?.id ? `spotify:track:${t.id}` : null))))
-            .filter(Boolean);
-
-        if (urisDirect.length) {
-            await spotifyAddTracks(urisDirect);
-            if (typeof logEvent === "function") logEvent(me.id, "playlist_saved", { count: urisDirect.length, premium });
-            return res.json({ ok: true, playlistId, url: created?.external_urls?.spotify, added: urisDirect.length });
-        }
-
-        // Eğer senin tracks formatın artist/song ise buradan aramaya geçersin:
-        const uris = [];
-        for (const t of tracks) {
-            const artist = normalizeStr(t?.artist);
-            const song = normalizeStr(t?.song);
-            if (!artist || !song) continue;
-
-            const q = `track:${song} artist:${artist}`;
-            const hit = await spotifySearchTrack(q);
-            if (hit?.uri) uris.push(hit.uri);
-        }
-
-        if (!uris.length) {
-            return res.status(400).json({ error: "No Spotify matches found for provided tracks" });
-        }
-
-        await spotifyAddTracks(uris);
-
-        if (typeof logEvent === "function") logEvent(me.id, "playlist_saved", { count: uris.length, premium });
-
-        return res.json({ ok: true, playlistId, url: created?.external_urls?.spotify, added: uris.length, premium });
-    } catch (e) {
-        console.error("saveSpotifyPlaylist crash:", e);
-        return res.status(500).json({ error: String(e?.message || e) });
-    }
-}
-
-app.get("/api/debug/users", (req, res) => {
-    try {
-        if (!requireAdmin(req, res)) return;
-        return res.json({ stats: getStats(), users: getUsers(20) });
-    } catch (e) {
-        console.error("DEBUG USERS ERROR:", e);
-        return res.status(500).json({ error: "debug users crashed" });
-    }
-});
-
-app.get("/debug/spotify", async (req, res) => {
-    const token = await getValidSpotifyToken(req, res);
-    if (!token) return res.status(401).json({ error: "Spotify not connected" });
-
-    try {
-        const meRes = await fetch("https://api.spotify.com/v1/me", {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const me = await meRes.json();
-
-        const tracksRes = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=3&time_range=short_term", {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const tracks = await tracksRes.json();
-
-        return res.json({
-            ok: true,
-            me: { id: me.id, display_name: me.display_name },
-            premium: isPremium(String(me.id || "")),
-            sampleTopTracks: (tracks?.items || []).slice(0, 3).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim())
-        });
-    } catch (e) {
-        console.error(e);
-        return res.json({ ok: false, error: String(e) });
-    }
-});
-
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// Spotify OAuth
-app.get("/login", (req, res) => {
-    try {
-        const state = crypto.randomBytes(12).toString("hex");
-        setCookie(res, "spotify_state", state, 10 * 60 * 1000);
-
-        const scope = [
-            "user-read-private",
-            "user-read-email",
-            "user-top-read",
-            "playlist-modify-public",
-            "playlist-modify-private"
-        ].join(" ");
-
-        const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
-        const clientId = String(process.env.SPOTIFY_CLIENT_ID || "").trim();
-
-        if (!clientId || !redirectUri) {
-            console.error("Spotify ENV eksik:", {
-                SPOTIFY_CLIENT_ID: !!clientId,
-                SPOTIFY_REDIRECT_URI: !!redirectUri
-            });
-            return res.status(500).send("Sunucu ayarı eksik: Spotify giriş bilgileri tanımlı değil (CLIENT_ID / REDIRECT_URI).");
-        }
-
-        const force = String(req.query.force || "") === "1";
-
-        const params = querystring.stringify({
-            show_dialog: force ? "true" : "false",
-            response_type: "code",
-            client_id: clientId,
-            scope,
-            redirect_uri: redirectUri,
-            state
-        });
-
-        return res.redirect(`https://accounts.spotify.com/authorize?${params}`);
-    } catch (e) {
-        console.error("/login crashed:", e);
-        return res.status(500).send("Spotify giriş başlatılırken hata oluştu: " + (e?.message || String(e)));
-    }
-});
-
-app.get("/callback", async (req, res) => {
-    try {
-        const code = String(req.query.code || "");
-        const state = String(req.query.state || "");
-        const savedState = getCookie(req, "spotify_state");
-
-        if (!code) return res.status(400).send("No code");
-        if (!state || !savedState || state !== savedState) {
-            return res.status(400).send("Invalid state");
-        }
-
-        const body = new URLSearchParams({
-            grant_type: "authorization_code",
-            code,
-            redirect_uri: String(process.env.SPOTIFY_REDIRECT_URI || "").trim()
-        });
-
-        const auth = Buffer.from(
-            process.env.SPOTIFY_CLIENT_ID + ":" + process.env.SPOTIFY_CLIENT_SECRET
-        ).toString("base64");
-
-        const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-            method: "POST",
-            headers: {
-                Authorization: `Basic ${auth}`,
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body
-        });
-
-        const data = await tokenRes.json();
-        if (!tokenRes.ok) {
-            console.error("Spotify token error:", data);
-            return res.status(500).send("Token exchange failed");
-        }
-        try {
-            const meRes = await fetch("https://api.spotify.com/v1/me", {
-                headers: { Authorization: `Bearer ${data.access_token}` }
-            });
-            const me = await meRes.json();
-            if (me?.id) {
-                upsertUser({ spotify_id: me.id, display_name: me.display_name });
-                console.log("UPSERT_OK", me.id);
-
-                console.log("LOGIN_EVENT", {
-                    spotify_id: me.id,
-                    display_name: me.display_name || null,
-                    time: new Date().toISOString()
-                });
-
-            } else {
-                console.error("Spotify /me missing id:", me);
-            }
-        } catch (e) {
-            console.error("upsertUser failed:", e);
-        }
-        clearCookie(res, req, "spotify_state");
-
-        const expiresIn = Number(data.expires_in || 3600);
-        const expiresAt = Date.now() + expiresIn * 1000;
-
-        setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
-        if (data.refresh_token) {
-            setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
-        }
-        setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
-        return res.redirect("/");
-    } catch (err) {
-        console.error(err);
-        return res.status(500).send("Callback failed");
-    }
-});
+/* -----------------------------
+   Spotify token flow (with refresh)
+------------------------------ */
 async function refreshSpotifyAccessToken(req, res) {
     const refreshToken = getCookie(req, "spotify_refresh_token");
     if (!refreshToken) return null;
@@ -480,11 +172,7 @@ async function refreshSpotifyAccessToken(req, res) {
     if (!clientId || !clientSecret) return null;
 
     const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-
-    const body = new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken
-    });
+    const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
 
     const r = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
@@ -508,12 +196,9 @@ async function refreshSpotifyAccessToken(req, res) {
     const expiresAt = Date.now() + expiresIn * 1000;
 
     setCookie(res, "spotify_access_token", j.access_token, expiresIn * 1000);
-
-    // Spotify bazen refresh_token dönmez; dönse bile güncellemek zarar vermez
     if (j.refresh_token) {
         setCookie(res, "spotify_refresh_token", j.refresh_token, 365 * 24 * 60 * 60 * 1000);
     }
-
     setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
 
     return j.access_token;
@@ -527,11 +212,9 @@ async function getValidSpotifyToken(req, res) {
     if (token && exp && (exp - Date.now() > 60_000)) return token;
 
     // token yok / bitiyor -> refresh dene
-    const refreshed = await refreshSpotifyAccessToken(req, res);
-    return refreshed;
+    return await refreshSpotifyAccessToken(req, res);
 }
 
-// Eskisini bununla değiştir (aşağıda kullanacağız)
 async function requireSpotifyToken(req, res) {
     const token = await getValidSpotifyToken(req, res);
     if (!token) {
@@ -541,7 +224,228 @@ async function requireSpotifyToken(req, res) {
     return token;
 }
 
-    // Çıkış yap: cookie temizle, ana sayfaya dön
+/* -----------------------------
+   spotifyFetch wrapper (auto-retry on 401)
+------------------------------ */
+async function spotifyFetch(req, res, url, options = {}) {
+    let token = await getValidSpotifyToken(req, res);
+    if (!token) return { ok: false, status: 401, json: { error: "no_token" }, text: null };
+
+    const doReq = async (tk) => {
+        const r = await fetch(url, {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${tk}`,
+            }
+        });
+
+        const ct = r.headers.get("content-type") || "";
+        let data = null;
+        if (ct.includes("application/json")) data = await r.json().catch(() => ({}));
+        else data = await r.text().catch(() => "");
+
+        return { r, data };
+    };
+
+    let { r, data } = await doReq(token);
+
+    if (r.status === 401) {
+        const refreshed = await refreshSpotifyAccessToken(req, res);
+        if (!refreshed) return { ok: false, status: 401, json: { error: "expired_and_refresh_failed" }, text: null };
+        token = refreshed;
+        ({ r, data } = await doReq(token));
+    }
+
+    return {
+        ok: r.ok,
+        status: r.status,
+        json: typeof data === "string" ? null : data,
+        text: typeof data === "string" ? data : null
+    };
+}
+
+/* -----------------------------
+   Spotify helpers
+------------------------------ */
+async function spotifyMe(req, res) {
+    const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
+    if (!meRes.ok) return { ok: false, me: null, status: meRes.status, details: meRes.json || meRes.text };
+    return { ok: true, me: meRes.json, status: 200, details: null };
+}
+
+async function spotifyCreatePlaylist(req, res, userId, title, description) {
+    const body = JSON.stringify({
+        name: title,
+        description: description || "",
+        public: false
+    });
+
+    const r = await spotifyFetch(req, res, `https://api.spotify.com/v1/users/${encodeURIComponent(userId)}/playlists`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body
+    });
+
+    return r;
+}
+
+async function spotifySearchTrack(req, res, q) {
+    const url = "https://api.spotify.com/v1/search?" + new URLSearchParams({
+        q,
+        type: "track",
+        limit: "1"
+    }).toString();
+
+    const r = await spotifyFetch(req, res, url);
+    if (!r.ok) return null;
+
+    const item = r.json?.tracks?.items?.[0];
+    if (!item?.uri) return null;
+    return { uri: item.uri, id: item.id, name: item.name, artist: item.artists?.[0]?.name || "" };
+}
+
+async function spotifyAddTracks(req, res, playlistId, uris) {
+    const chunks = [];
+    for (let i = 0; i < uris.length; i += 100) chunks.push(uris.slice(i, i + 100));
+
+    for (const chunk of chunks) {
+        const r = await spotifyFetch(req, res, `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uris: chunk })
+        });
+        if (!r.ok) return r;
+    }
+    return { ok: true, status: 200, json: { ok: true } };
+}
+
+async function getSpotifyMeId(req, res) {
+    const { ok, me } = await spotifyMe(req, res);
+    if (!ok || !me?.id) return "";
+    return String(me.id);
+}
+
+/* -----------------------------
+   ROUTES
+------------------------------ */
+
+// Home
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Spotify OAuth start
+app.get("/login", (req, res) => {
+    try {
+        const state = crypto.randomBytes(12).toString("hex");
+        setCookie(res, "spotify_state", state, 10 * 60 * 1000);
+
+        const scope = [
+            "user-read-private",
+            "user-read-email",
+            "user-top-read",
+            "playlist-modify-public",
+            "playlist-modify-private"
+        ].join(" ");
+
+        const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
+        const clientId = String(process.env.SPOTIFY_CLIENT_ID || "").trim();
+
+        if (!clientId || !redirectUri) {
+            console.error("Spotify ENV eksik:", {
+                SPOTIFY_CLIENT_ID: !!clientId,
+                SPOTIFY_REDIRECT_URI: !!redirectUri
+            });
+            return res.status(500).send("Sunucu ayarı eksik: CLIENT_ID / REDIRECT_URI yok.");
+        }
+
+        const force = String(req.query.force || "") === "1";
+
+        const params = querystring.stringify({
+            show_dialog: force ? "true" : "false",
+            response_type: "code",
+            client_id: clientId,
+            scope,
+            redirect_uri: redirectUri,
+            state
+        });
+
+        return res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+    } catch (e) {
+        console.error("/login crashed:", e);
+        return res.status(500).send("Spotify giriş başlatılırken hata: " + (e?.message || String(e)));
+    }
+});
+
+// Spotify OAuth callback
+app.get("/callback", async (req, res) => {
+    try {
+        const code = String(req.query.code || "");
+        const state = String(req.query.state || "");
+        const savedState = getCookie(req, "spotify_state");
+
+        if (!code) return res.status(400).send("No code");
+        if (!state || !savedState || state !== savedState) return res.status(400).send("Invalid state");
+
+        const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
+
+        const body = new URLSearchParams({
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: redirectUri
+        });
+
+        const auth = Buffer.from(
+            process.env.SPOTIFY_CLIENT_ID + ":" + process.env.SPOTIFY_CLIENT_SECRET
+        ).toString("base64");
+
+        const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body
+        });
+
+        const data = await tokenRes.json();
+        if (!tokenRes.ok) {
+            console.error("Spotify token error:", data);
+            return res.status(500).send("Token exchange failed");
+        }
+
+        // user upsert
+        try {
+            const meRes = await fetch("https://api.spotify.com/v1/me", {
+                headers: { Authorization: `Bearer ${data.access_token}` }
+            });
+            const me = await meRes.json();
+            if (me?.id) {
+                upsertUser({ spotify_id: me.id, display_name: me.display_name });
+                console.log("LOGIN_EVENT", { spotify_id: me.id, display_name: me.display_name || null, time: new Date().toISOString() });
+            }
+        } catch (e) {
+            console.error("upsertUser failed:", e);
+        }
+
+        clearCookie(res, req, "spotify_state");
+
+        const expiresIn = Number(data.expires_in || 3600);
+        const expiresAt = Date.now() + expiresIn * 1000;
+
+        setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
+        if (data.refresh_token) setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
+        setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
+
+        return res.redirect("/");
+    } catch (err) {
+        console.error(err);
+        return res.status(500).send("Callback failed");
+    }
+});
+
+// Logout
 app.get("/logout", (req, res) => {
     try {
         clearCookie(res, req, "spotify_access_token");
@@ -554,56 +458,8 @@ app.get("/logout", (req, res) => {
         return res.redirect(302, "/");
     }
 });
-async function spotifyFetch(req, res, url, options = {}) {
-    // 1) token al (gerekirse refreshler)
-    let token = await getValidSpotifyToken(req, res);
-    if (!token) {
-        return { ok: false, status: 401, json: { error: "no_token" } };
-    }
 
-    // 2) istek at
-    const doReq = async (tk) => {
-        const r = await fetch(url, {
-            ...options,
-            headers: {
-                ...(options.headers || {}),
-                Authorization: `Bearer ${tk}`,
-            },
-        });
-
-        // body parse (spotify bazen boş döner)
-        const ct = r.headers.get("content-type") || "";
-        let data = null;
-        if (ct.includes("application/json")) data = await r.json().catch(() => ({}));
-        else data = await r.text().catch(() => "");
-
-        return { r, data };
-    };
-
-    let { r, data } = await doReq(token);
-
-    // 3) 401 ise: token ölmüş olabilir → refresh + retry (1 kez)
-    if (r.status === 401) {
-        const refreshed = await refreshSpotifyAccessToken(req, res);
-        if (!refreshed) {
-            return { ok: false, status: 401, json: { error: "expired_and_refresh_failed" } };
-        }
-        token = refreshed;
-        ({ r, data } = await doReq(token));
-    }
-
-    const out = {
-        ok: r.ok,
-        status: r.status,
-        // json/text ayrımı:
-        json: typeof data === "string" ? null : data,
-        text: typeof data === "string" ? data : null,
-    };
-
-    return out;
-}
-
-    // Hesap değiştir: cookie temizle, Spotify login'e force ile git (show_dialog=true)
+// Switch account (force dialog)
 app.get("/switch-account", (req, res) => {
     try {
         clearCookie(res, req, "spotify_access_token");
@@ -616,6 +472,8 @@ app.get("/switch-account", (req, res) => {
         return res.redirect(302, "/login?force=1");
     }
 });
+
+// Debug cookies
 app.get("/debug/cookies", (req, res) => {
     res.json({
         hostname: req.hostname,
@@ -626,38 +484,72 @@ app.get("/debug/cookies", (req, res) => {
         statePresent: Boolean(getCookie(req, "spotify_state"))
     });
 });
-// Admin: hediye kodu üret
-app.post("/api/admin/codes/create", (req, res) => {
+
+// Spotify status (single source of truth)
+app.get("/api/spotify/status", async (req, res) => {
     try {
-        if (!requireAdmin(req, res)) return;
+        const token = await getValidSpotifyToken(req, res);
+        if (!token) return res.json({ connected: false, reason: "no_token" });
 
-        const days = Number(req.body?.days ?? 30);
-        const max_uses = Number(req.body?.max_uses ?? 1);
-        const note = String(req.body?.note ?? "");
+        const r = await fetch("https://api.spotify.com/v1/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
-        const codeObj = createRedeemCode({ days, max_uses, note });
-        return res.json({ ok: true, code: codeObj.code, meta: codeObj });
+        if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
+        if (r.status === 403) return res.json({ connected: false, reason: "insufficient_scope" });
+        if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
+
+        const me = await r.json();
+        return res.json({
+            connected: true,
+            user: { id: me.id, name: me.display_name },
+            premium: isPremium(me.id)
+        });
     } catch (e) {
-        console.error(e);
-        return res.status(500).json({ ok: false, error: "code create failed" });
-    }
-});
-app.post("/api/redeem", async (req, res) => {
-    try {
-        const spotify_id = await getSpotifyMeId(req, res);
-        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify’a giriş yap." });
-
-        const code = String(req.body?.code || "");
-        const result = redeemCode(code, spotify_id);
-        if (!result.ok) return res.status(400).json(result);
-
-        return res.json({ ok: true, premium_until: result.premium_until, days_added: result.days_added });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ ok: false, error: "redeem failed" });
+        return res.json({ connected: false, reason: "exception", message: String(e?.message || e) });
     }
 });
 
+// /api/me (clean, no nested routes)
+app.get("/api/me", async (req, res) => {
+    try {
+        let token = await getValidSpotifyToken(req, res);
+        if (!token) return res.status(200).json({ ok: false, reason: "no_token" });
+
+        let r = await fetch("https://api.spotify.com/v1/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        let data = await r.json().catch(() => ({}));
+
+        if (r.status === 401) {
+            const refreshed = await refreshSpotifyAccessToken(req, res);
+            if (refreshed) {
+                token = refreshed;
+                r = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                data = await r.json().catch(() => ({}));
+            }
+        }
+
+        if (!r.ok) {
+            return res.status(200).json({ ok: false, status: r.status, spotify_error: data });
+        }
+
+        const premium = isPremium(data.id);
+
+        return res.status(200).json({
+            ok: true,
+            me: { id: data.id, display_name: data.display_name },
+            premium
+        });
+    } catch (e) {
+        return res.status(200).json({ ok: false, reason: "exception", message: String(e?.message || e) });
+    }
+});
+
+// Spotify top helper endpoint
 app.get("/spotify/top", async (req, res) => {
     try {
         const token = await requireSpotifyToken(req, res);
@@ -690,186 +582,80 @@ app.get("/spotify/top", async (req, res) => {
     }
 });
 
-app.get("/api/me", async (req, res) => {
-    try {
-        // 1) normal token
-        let token = await getValidSpotifyToken(req, res);
-        if (!token) return res.status(200).json({ ok: false, reason: "no_token" });
+// Debug spotify (quick sanity)
+app.get("/debug/spotify", async (req, res) => {
+    const token = await getValidSpotifyToken(req, res);
+    if (!token) return res.status(401).json({ error: "Spotify not connected" });
 
-        // 2) ilk deneme
-        let r = await fetch("https://api.spotify.com/v1/me", {
+    try {
+        const meRes = await fetch("https://api.spotify.com/v1/me", {
             headers: { Authorization: `Bearer ${token}` }
         });
+        const me = await meRes.json();
 
-        let data = await r.json().catch(() => ({}));
-
-        // 3) 401 ise: token aslında ölmüş olabilir -> refresh yapıp 1 kez daha dene
-        if (r.status === 401) {
-            const refreshed = await refreshSpotifyAccessToken(req, res);
-            if (refreshed) {
-                token = refreshed;
-                r = await fetch("https://api.spotify.com/v1/me", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                data = await r.json().catch(() => ({}));
-            }
-        }
-
-        if (!r.ok) {
-            // kritik: artık sebebi göreceğiz
-            return res.status(200).json({
-                ok: false,
-                status: r.status,
-                spotify_error: data
-            });
-        }
-        app.get("/api/spotify/status", async (req, res) => {
-            try {
-                const token = await getValidSpotifyToken(req, res);
-
-                if (!token) {
-                    return res.json({
-                        connected: false,
-                        reason: "no_token"
-                    });
-                }
-
-                const r = await fetch("https://api.spotify.com/v1/me", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (r.status === 401) {
-                    return res.json({
-                        connected: false,
-                        reason: "expired_token"
-                    });
-                }
-
-                if (r.status === 403) {
-                    return res.json({
-                        connected: false,
-                        reason: "insufficient_scope"
-                    });
-                }
-
-                if (!r.ok) {
-                    return res.json({
-                        connected: false,
-                        reason: "spotify_error",
-                        status: r.status
-                    });
-                }
-
-                const me = await r.json();
-
-                return res.json({
-                    connected: true,
-                    user: {
-                        id: me.id,
-                        name: me.display_name
-                    },
-                    premium: isPremium(me.id)
-                });
-
-            } catch (e) {
-                return res.json({
-                    connected: false,
-                    reason: "exception",
-                    message: String(e.message || e)
-                });
-            }
-        });
-
-
-        const premium = isPremium(data.id);
-
-        return res.status(200).json({
-            ok: true,
-            me: { id: data.id, display_name: data.display_name },
-            premium
-        });
-    } catch (e) {
-        return res.status(200).json({ ok: false, reason: "exception", message: String(e?.message || e) });
-    }
-});
-
-app.get("/api/spotify/status", async (req, res) => {
-    try {
-        const token = await getValidSpotifyToken(req, res);
-
-        if (!token) {
-            return res.json({ connected: false, reason: "no_token" });
-        }
-
-        const r = await fetch("https://api.spotify.com/v1/me", {
+        const tracksRes = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=3&time_range=short_term", {
             headers: { Authorization: `Bearer ${token}` }
         });
+        const tracks = await tracksRes.json();
 
-        if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
-        if (r.status === 403) return res.json({ connected: false, reason: "insufficient_scope" });
-
-        if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
-
-        const me = await r.json();
         return res.json({
-            connected: true,
-            user: { id: me.id, name: me.display_name },
-            premium: isPremium(me.id)
+            ok: true,
+            me: { id: me.id, display_name: me.display_name },
+            premium: isPremium(String(me.id || "")),
+            sampleTopTracks: (tracks?.items || []).slice(0, 3).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim())
         });
     } catch (e) {
-        return res.json({ connected: false, reason: "exception", message: String(e?.message || e) });
+        console.error(e);
+        return res.json({ ok: false, error: String(e) });
     }
 });
 
-// AI generate
+/* -----------------------------
+   AI generate (CLEAN)
+------------------------------ */
 app.post("/api/generate", async (req, res) => {
+    const userText = String(req.body?.text ?? "").trim();
+    if (!userText) return res.status(400).json({ error: "Missing text" });
+
     try {
         const spotifyToken = await getValidSpotifyToken(req, res);
         let spotifyProfileText = "";
 
+        // 1) Spotify profile text (optional)
         if (spotifyToken) {
             const cached = spotifyProfileCache.get(spotifyToken);
             const now = Date.now();
 
             if (cached && (now - cached.ts) < SPOTIFY_PROFILE_TTL) {
-                //  cache hit
                 spotifyProfileText = cached.text;
             } else {
                 try {
-                    const [tracksRes, artistsRes] = await Promise.all([
-                        fetch("https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term", {
-                            headers: { Authorization: `Bearer ${spotifyToken}` }
-                        }),
-                        fetch("https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term", {
-                            headers: { Authorization: `Bearer ${spotifyToken}` }
-                        })
+                    const [topTracksRes, topArtistsRes] = await Promise.all([
+                        spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term"),
+                        spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term")
                     ]);
 
-                    if (tracksRes.ok && artistsRes.ok) {
-                        const tracksJson = await tracksRes.json();
-                        const artistsJson = await artistsRes.json();
+                    if (topTracksRes.ok && topArtistsRes.ok) {
+                        const tracksJson = topTracksRes.json;
+                        const artistsJson = topArtistsRes.json;
 
-                        const topTracks = (tracksJson.items || [])
+                        const topTracksText = (tracksJson.items || [])
                             .map(t => `${t.name} by ${t.artists?.[0]?.name || ""}`)
                             .join(", ");
 
-                        const topArtists = (artistsJson.items || [])
+                        const topArtistsText = (artistsJson.items || [])
                             .map(a => a.name)
                             .join(", ");
 
                         spotifyProfileText = `
 User listening profile:
-Top artists: ${topArtists}
-Top tracks: ${topTracks}
+Top artists: ${topArtistsText}
+Top tracks: ${topTracksText}
 
 Use this profile to personalize the playlist.
 `.trim();
 
-                        //  cache write
-                        spotifyProfileCache.set(spotifyToken, {
-                            text: spotifyProfileText,
-                            ts: now
-                        });
+                        spotifyProfileCache.set(spotifyToken, { text: spotifyProfileText, ts: now });
                     }
                 } catch (e) {
                     console.error("Spotify profile fetch failed", e);
@@ -877,56 +663,36 @@ Use this profile to personalize the playlist.
             }
         }
 
-        const userText = String(req.body?.text ?? "").trim();
+        // 2) Count + premium/free limit
         const requestedCountRaw = Number(req.body?.count ?? 20);
         let requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
 
-        // --- PREMIUM/FREE LIMITS ---
         let premium = false;
         try {
-            // spotify bağlıysa premium kontrol edelim (me.id ile)
             if (spotifyToken) {
-                const meRes = await fetch("https://api.spotify.com/v1/me", {
-                    headers: { Authorization: `Bearer ${spotifyToken}` }
-                });
-                const me = await meRes.json();
-                if (meRes.ok && me?.id) premium = isPremium(me.id);
+                const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
+                if (meRes.ok && meRes.json?.id) premium = isPremium(meRes.json.id);
             }
         } catch (e) {
             console.error("premium check failed", e);
         }
 
-        const FREE_MAX = 40;
-        const PREMIUM_MAX = 200;
-        const hardMax = premium ? PREMIUM_MAX : FREE_MAX;
+        const hardMax = premium ? 200 : 40;
         requestedCount = Math.max(20, Math.min(hardMax, requestedCount));
 
-        if (!userText) return res.status(400).json({ error: "Missing text" });
-
+        // 3) Prompts
         const systemPrompt = `
 You are an expert music curator and playlist designer.
 You deeply understand mood, emotion, tempo, and how music guides feelings over time.
+
 STRICT RULES:
--You will be given requested_count.
--You MUST return exactly requested_count tracks.
+- You will be given requested_count.
+- You MUST return exactly requested_count tracks.
 - Follow the user's mood, energy, language, and era strictly.
 - If the user provides example songs or artists, include at least one of them in the playlist.
 - Match the overall vibe to the examples given.
-- Do NOT ignore constraints.
 - Avoid generic or unrelated songs.
 - Use plain ASCII characters only.
-- Output clean, readable text.
--Example songs are emotional anchors.
--Do not drift far from the genre, emotional tone, and tempo of the example song.
-
-Critical rules:
--Never ask for confirmation. Never ask questions.
--Do not write "approval needed" or similar.
--Always produce the final playlist output
--Absolutely no placeholders.
--Every track must be a real, widely known released song on Spotify.
--If unsure, replace with a safer mainstream real song.
--Never output "Alternative Track", "Project", "Artist - Song" guesses, or generic labels.
 - Output MUST be valid JSON only, matching the provided schema.
 - Do not invent fake songs. Prefer widely available tracks.
 - Avoid repeating the same artist more than 2 times.
@@ -935,36 +701,28 @@ Language rule:
 - If the user writes in Turkish, set language="tr" and write title+description in Turkish.
 - If the user writes in English, set language="en" and write title+description in English.
 - Do not mix languages in title/description.
--If the request is in Turkish and emotional, avoid aggressive Turkish rap or hard rock unless explicitly requested.
 
 Emotional arc rule:
-- Tracks 1–5: ease-in / set the mood
-- Tracks 6–15: main emotional peak
-- Tracks 16–20: resolution based on user input
--Energy interpretation rule:
--Energy refers to emotional flow and momentum, not loudness or aggression.
--Higher energy does NOT mean aggressive rap, trap, EDM, or hard rock unless explicitly requested.
--For energy levels 6-7, prefer midtempo, melodic, emotionally driven tracks that feel dynamic but controlled.
+- Tracks 1-5: ease-in / set the mood
+- Tracks 6-15: main emotional peak
+- Tracks 16-20: resolution based on user input
 
-
-
-No cringe. No corporate tone.
 IMPORTANT:
 Use plain ASCII characters only.
 Do not use smart quotes, special punctuation, or non-ASCII symbols.
 Use simple apostrophes and standard characters only.
-${spotifyProfileText}
 
-    `.trim();
+${spotifyProfileText}
+`.trim();
 
         const userPrompt = `User request: ${userText}\nrequested_count: ${requestedCount}`;
 
-        // Make schema exact per request (no escaping to 50 etc.)
+        // 4) Schema exact count
         const exactSchema = structuredClone(playlistSchema);
         exactSchema.schema.properties.tracks.minItems = requestedCount;
         exactSchema.schema.properties.tracks.maxItems = requestedCount;
 
-
+        // 5) OpenAI call
         const response = await client.responses.create({
             model: "gpt-5-mini",
             input: [
@@ -982,60 +740,166 @@ ${spotifyProfileText}
         });
 
         const jsonText = response.output_text;
-        console.log("OPENAI_USAGE", response.usage || null);
-
         const data = JSON.parse(jsonText);
-        // server-generated energy curve (saves output tokens)
-        data.energy_curve = buildEnergyCurve((data.tracks && data.tracks.length) ? data.tracks.length : requestedCount);
 
-        console.log("GENERATE_EVENT", {
-            spotify_connected: Boolean(spotifyToken),
-            requestedCount,
-            time: new Date().toISOString()
-        });
+        data.energy_curve = buildEnergyCurve(data.tracks?.length || requestedCount);
 
-        // ---- admin stats: playlist_created (only if Spotify is connected) ----
+        // admin stats: playlist_created (only if Spotify is connected)
         try {
             if (spotifyToken) {
-                const meRes = await fetch("https://api.spotify.com/v1/me", {
-                    headers: { Authorization: `Bearer ${spotifyToken}` }
-                });
-                const me = await meRes.json();
-                if (meRes.ok && me?.id) {
-                    markPlaylistCreated(me.id, `count=${requestedCount}`);
-                }
+                const meId = await getSpotifyMeId(req, res);
+                if (meId) markPlaylistCreated(meId, `count=${requestedCount}`);
             }
         } catch (e) {
             console.error("markPlaylistCreated failed:", e);
         }
 
-
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         return res.json(data);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to generate playlist" });
+    } catch (e) {
+        console.error("generate crash:", e);
+        return res.status(500).json({ error: String(e?.message || e) });
     }
 });
+
+/* -----------------------------
+   Save playlist to Spotify
+------------------------------ */
+async function saveSpotifyPlaylist(req, res) {
+    try {
+        const token = await requireSpotifyToken(req, res);
+        if (!token) return;
+
+        const meInfo = await spotifyMe(req, res);
+        if (!meInfo.ok) return res.status(401).json({ error: "Spotify /me failed" });
+        const me = meInfo.me;
+
+        const premium = isPremium(String(me.id || ""));
+
+        // Optional free save limit (keep your existing logic)
+        try {
+            if (!premium) {
+                const used = countSavedToday(String(me.id || ""));
+                // ister sıkı yap, ister esnet:
+                // if (used >= 1) return res.status(402).json({ error: "Free plan daily save limit reached." });
+                // şimdilik sadece log:
+                if (used >= 1) console.log("FREE_SAVE_LIMIT_WARNING", { me: me.id, used });
+            }
+        } catch (e) {
+            console.error("countSavedToday failed:", e);
+        }
+
+        const body = req.body || {};
+        const title = normalizeStr(body.title || body.name || "Spotimaker Playlist");
+        const description = normalizeStr(body.description || "");
+        const tracks = Array.isArray(body.tracks) ? body.tracks : [];
+
+        if (!tracks.length) return res.status(400).json({ error: "Missing tracks" });
+
+        // Create Spotify playlist
+        const created = await spotifyCreatePlaylist(req, res, me.id, title, description);
+        if (!created.ok) {
+            console.error("create playlist failed:", created.json || created.text);
+            return res.status(500).json({ error: "create playlist failed", details: created.json || created.text });
+        }
+
+        const playlistId = created.json?.id;
+        if (!playlistId) return res.status(500).json({ error: "create playlist returned no id" });
+
+        // Build track URIs
+        const uris = [];
+        for (const t of tracks) {
+            const artist = normalizeStr(t?.artist);
+            const song = normalizeStr(t?.song);
+
+            if (!artist || !song) continue;
+
+            const q = `track:${song} artist:${artist}`;
+            const hit = await spotifySearchTrack(req, res, q);
+            if (hit?.uri) uris.push(hit.uri);
+        }
+
+        if (!uris.length) {
+            return res.status(400).json({ error: "No Spotify matches found for provided tracks" });
+        }
+
+        const addRes = await spotifyAddTracks(req, res, playlistId, uris);
+        if (!addRes.ok) {
+            console.error("add tracks failed:", addRes.json || addRes.text);
+            return res.status(500).json({ error: "add tracks failed", details: addRes.json || addRes.text });
+        }
+
+        try {
+            markPlaylistSaved(me.id, `added=${uris.length}`);
+        } catch (e) {
+            console.error("markPlaylistSaved failed:", e);
+        }
+
+        return res.json({
+            ok: true,
+            playlistId,
+            url: created.json?.external_urls?.spotify || null,
+            added: uris.length,
+            premium
+        });
+    } catch (e) {
+        console.error("saveSpotifyPlaylist crash:", e);
+        return res.status(500).json({ error: String(e?.message || e) });
+    }
+}
+
 app.post("/spotify/save", saveSpotifyPlaylist);
 app.post("/api/spotify/save", saveSpotifyPlaylist);
 
-function requireAdmin(req, res) {
-    const token = String(req.query.token || req.headers["x-admin-token"] || "");
-    if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
-        res.status(401).send("Unauthorized");
-        return false;
+/* -----------------------------
+   Redeem + admin
+------------------------------ */
+
+// Admin: hediye kodu üret
+app.post("/api/admin/codes/create", (req, res) => {
+    try {
+        if (!requireAdmin(req, res)) return;
+
+        const days = Number(req.body?.days ?? 30);
+        const max_uses = Number(req.body?.max_uses ?? 1);
+        const note = String(req.body?.note ?? "");
+
+        const codeObj = createRedeemCode({ days, max_uses, note });
+        return res.json({ ok: true, code: codeObj.code, meta: codeObj });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: "code create failed" });
     }
-    return true;
-}
+});
 
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-}
+app.post("/api/redeem", async (req, res) => {
+    try {
+        const spotify_id = await getSpotifyMeId(req, res);
+        if (!spotify_id) return res.status(401).json({ ok: false, error: "Once Spotify’a giris yap." });
 
+        const code = String(req.body?.code || "");
+        const result = redeemCode(code, spotify_id);
+        if (!result.ok) return res.status(400).json(result);
 
+        return res.json({ ok: true, premium_until: result.premium_until, days_added: result.days_added });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: "redeem failed" });
+    }
+});
+
+// Debug users (admin)
+app.get("/api/debug/users", (req, res) => {
+    try {
+        if (!requireAdmin(req, res)) return;
+        return res.json({ stats: getStats(), users: getUsers(20) });
+    } catch (e) {
+        console.error("DEBUG USERS ERROR:", e);
+        return res.status(500).json({ error: "debug users crashed" });
+    }
+});
+
+// Admin panel
 app.get("/admin", (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
@@ -1078,19 +942,20 @@ app.get("/admin", (req, res) => {
     <div class="card"><b>Active 24h</b><div>${stats.active24h}</div></div>
     <div class="card"><b>Total events</b><div>${stats.totalEvents}</div></div>
   </div>
-    <div class="card" style="margin:14px 0;">
-    <h3 style="margin:0 0 10px 0;">Premium Kod Üret</h3>
+
+  <div class="card" style="margin:14px 0;">
+    <h3 style="margin:0 0 10px 0;">Premium Kod Uret</h3>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <label>Gün:
+      <label>Gun:
         <input id="days" type="number" value="30" min="1" style="width:90px; padding:8px;" />
       </label>
-      <label>Kullanım:
+      <label>Kullanim:
         <input id="uses" type="number" value="1" min="1" style="width:90px; padding:8px;" />
       </label>
       <label>Not:
         <input id="note" type="text" placeholder="Hediye / promo vs" style="min-width:220px; padding:8px;" />
       </label>
-      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod üret</button>
+      <button id="createCodeBtn" style="padding:10px 12px; font-weight:800;">Kod uret</button>
     </div>
     <div id="codeOut" style="margin-top:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;"></div>
     <div style="color:#666; font-size:12px; margin-top:6px;">
@@ -1103,7 +968,7 @@ app.get("/admin", (req, res) => {
     const out = document.getElementById("codeOut");
 
     btn.onclick = async () => {
-      out.textContent = "Üretiliyor...";
+      out.textContent = "Uretiliyor...";
       try {
         const days = Number(document.getElementById("days").value || 30);
         const max_uses = Number(document.getElementById("uses").value || 1);
@@ -1116,7 +981,7 @@ app.get("/admin", (req, res) => {
         });
 
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(j.error || "Kod üretilemedi");
+        if (!r.ok) throw new Error(j.error || "Kod uretilemedi");
 
         out.innerHTML = "<b>KOD:</b> <span style='font-size:16px;'>" + j.code + "</span>";
       } catch (e) {
@@ -1144,15 +1009,13 @@ app.get("/admin", (req, res) => {
   </table>
 </body>
 </html>`);
-
     } catch (e) {
         console.error("ADMIN ERROR:", e);
         return res.status(500).send("Admin crashed. Check logs.");
     }
 });
 
-
-// static LAST
+// Static LAST
 app.use(express.static(path.join(__dirname, "public")));
 
 const port = process.env.PORT || 8787;
