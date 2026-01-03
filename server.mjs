@@ -1,4 +1,4 @@
-﻿// server.mjs (fixed)
+﻿// server.mjs (RESTORED + FIXED)
 
 // --- core ---
 import express from "express";
@@ -7,7 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import querystring from "querystring";
 import crypto from "crypto";
-
+import dns from "node:dns";
 
 // --- db (single source of truth) ---
 import {
@@ -21,9 +21,8 @@ import {
     isPremium,
     countSavedToday,
     createRedeemCode,
-    redeemCode
+    redeemCode,
 } from "./db.mjs";
-import dns from "node:dns";
 
 // Render/IPv6 timeout sorunlarına karşı
 try {
@@ -39,15 +38,20 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Render reverse proxy
 app.enable("trust proxy");
+
+// HTTPS redirect (Render'da x-forwarded-proto ile doğru çalışır)
 app.use((req, res, next) => {
-    if (process.env.NODE_ENV === "production" && !req.secure) {
-        return res.redirect(301, `https://${req.get("host")}${req.originalUrl}`);
+    if (process.env.NODE_ENV === "production") {
+        const xfProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
+        // Render'da genelde xfProto=https gelir. Eğer http geldiyse https'e bas.
+        if (xfProto === "http") {
+            return res.redirect(301, `https://${req.get("host")}${req.originalUrl}`);
+        }
     }
     next();
 });
-
-
 
 // --- OpenAI client ---
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -61,8 +65,8 @@ const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 min
 ------------------------------ */
 function getCookie(req, name) {
     const header = req.headers.cookie || "";
-    const parts = header.split(";").map(v => v.trim());
-    const found = parts.find(p => p.startsWith(name + "="));
+    const parts = header.split(";").map((v) => v.trim());
+    const found = parts.find((p) => p.startsWith(name + "="));
     if (!found) return "";
     return decodeURIComponent(found.split("=").slice(1).join("="));
 }
@@ -75,8 +79,10 @@ function setCookie(res, name, value, maxAgeMs) {
         "Path=/",
         "HttpOnly",
         "SameSite=Lax",
-        isProd ? "Secure" : ""
-    ].filter(Boolean).join("; ");
+        isProd ? "Secure" : "",
+    ]
+        .filter(Boolean)
+        .join("; ");
 
     const prev = res.getHeader("Set-Cookie");
     if (!prev) res.setHeader("Set-Cookie", cookie);
@@ -92,8 +98,10 @@ function clearCookie(res, req, name) {
         "Path=/",
         "HttpOnly",
         "SameSite=Lax",
-        isProd ? "Secure" : ""
-    ].filter(Boolean).join("; ");
+        isProd ? "Secure" : "",
+    ]
+        .filter(Boolean)
+        .join("; ");
 
     const prev = res.getHeader("Set-Cookie");
     if (!prev) res.setHeader("Set-Cookie", cookie);
@@ -112,9 +120,14 @@ function requireAdmin(req, res) {
     }
     return true;
 }
+
 function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
     }[c]));
 }
 
@@ -122,9 +135,7 @@ function escapeHtml(s) {
    Utility
 ------------------------------ */
 function normalizeStr(s) {
-    return String(s || "")
-        .replace(/\s+/g, " ")
-        .trim();
+    return String(s || "").replace(/\s+/g, " ").trim();
 }
 
 function buildEnergyCurve(n) {
@@ -136,8 +147,8 @@ function buildEnergyCurve(n) {
         let v;
 
         if (x < 0.25) v = 3 + Math.round(3 * (x / 0.25));
-        else if (x < 0.70) v = 6 + Math.round(3 * ((x - 0.25) / 0.45));
-        else v = 9 - Math.round(4 * ((x - 0.70) / 0.30));
+        else if (x < 0.7) v = 6 + Math.round(3 * ((x - 0.25) / 0.45));
+        else v = 9 - Math.round(4 * ((x - 0.7) / 0.3));
 
         arr.push(Math.max(1, Math.min(10, v)));
     }
@@ -160,7 +171,7 @@ const playlistSchema = {
                 type: "array",
                 minItems: 3,
                 maxItems: 3,
-                items: { type: "string", minLength: 2, maxLength: 24 }
+                items: { type: "string", minLength: 2, maxLength: 24 },
             },
             tracks: {
                 type: "array",
@@ -171,14 +182,14 @@ const playlistSchema = {
                     additionalProperties: false,
                     properties: {
                         artist: { type: "string", minLength: 1, maxLength: 80 },
-                        song: { type: "string", minLength: 1, maxLength: 120 }
+                        song: { type: "string", minLength: 1, maxLength: 120 },
                     },
-                    required: ["artist", "song"]
-                }
-            }
+                    required: ["artist", "song"],
+                },
+            },
         },
-        required: ["language", "title", "description", "vibe_tags", "tracks"]
-    }
+        required: ["language", "title", "description", "vibe_tags", "tracks"],
+    },
 };
 
 /* -----------------------------
@@ -199,21 +210,18 @@ async function refreshSpotifyAccessToken(req, res) {
         method: "POST",
         headers: {
             Authorization: `Basic ${basic}`,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         },
-        body
+        body,
     });
 
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.access_token) {
         console.error("refresh token failed:", j);
 
-        // ✅ sadece access/exp sil, refresh'ı hemen yakma (debug + tekrar login için)
+        // access/exp temizle
         clearCookie(res, req, "spotify_access_token");
         clearCookie(res, req, "spotify_expires_at");
-
-        // refresh tokenı da silmek istersen bunu ancak "invalid_grant" gibi net durumlarda yap
-        // clearCookie(res, req, "spotify_refresh_token");
 
         return null;
     }
@@ -234,13 +242,9 @@ async function getValidSpotifyToken(req, res) {
     const token = getCookie(req, "spotify_access_token");
     const exp = Number(getCookie(req, "spotify_expires_at") || 0);
 
-    // token var ama exp yoksa → token'ı kullan
     if (token && !exp) return token;
+    if (token && exp && exp - Date.now() > 60_000) return token;
 
-    // token var ve 60 sn'den fazla süresi varsa → OK
-    if (token && exp && (exp - Date.now() > 60_000)) return token;
-
-    // token yok ya da süresi dolmak üzere → refresh dene
     return await refreshSpotifyAccessToken(req, res);
 }
 
@@ -266,7 +270,7 @@ async function spotifyFetch(req, res, url, options = {}) {
             headers: {
                 ...(options.headers || {}),
                 Authorization: `Bearer ${tk}`,
-            }
+            },
         });
 
         const ct = r.headers.get("content-type") || "";
@@ -290,7 +294,7 @@ async function spotifyFetch(req, res, url, options = {}) {
         ok: r.ok,
         status: r.status,
         json: typeof data === "string" ? null : data,
-        text: typeof data === "string" ? data : null
+        text: typeof data === "string" ? data : null,
     };
 }
 
@@ -304,25 +308,19 @@ async function spotifyMe(req, res) {
 }
 
 async function spotifyCreatePlaylist(req, res, userId, title, description) {
-    const body = JSON.stringify({
-        name: title,
-        description: description || "",
-        public: false
-    });
+    const body = JSON.stringify({ name: title, description: description || "", public: false });
 
     return await spotifyFetch(req, res, `https://api.spotify.com/v1/users/${encodeURIComponent(userId)}/playlists`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body
+        body,
     });
 }
 
 async function spotifySearchTrack(req, res, q) {
-    const url = "https://api.spotify.com/v1/search?" + new URLSearchParams({
-        q,
-        type: "track",
-        limit: "1"
-    }).toString();
+    const url =
+        "https://api.spotify.com/v1/search?" +
+        new URLSearchParams({ q, type: "track", limit: "1" }).toString();
 
     const r = await spotifyFetch(req, res, url);
     if (!r.ok) return null;
@@ -340,7 +338,7 @@ async function spotifyAddTracks(req, res, playlistId, uris) {
         const r = await spotifyFetch(req, res, `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ uris: chunk })
+            body: JSON.stringify({ uris: chunk }),
         });
         if (!r.ok) return r;
     }
@@ -356,14 +354,19 @@ async function getSpotifyMeId(req, res) {
 /* -----------------------------
    ROUTES
 ------------------------------ */
+
+// Debug env
 app.get("/api/debug/env", (req, res) => {
     res.json({
         NODE_ENV: process.env.NODE_ENV || null,
         x_forwarded_proto: req.headers["x-forwarded-proto"] || null,
         protocol: req.protocol,
-        secure: req.secure
+        secure: req.secure,
     });
 });
+
+// Static (public)
+app.use(express.static(path.join(__dirname, "public")));
 
 // Home
 app.get("/", (req, res) => {
@@ -374,7 +377,6 @@ app.get("/", (req, res) => {
 app.get("/api/admin/db-check", async (req, res) => {
     try {
         if (!requireAdmin(req, res)) return;
-
         await initDb();
         const stats = await getStats();
         const db = await pool.query("select current_database() as db, now() as now");
@@ -384,8 +386,7 @@ app.get("/api/admin/db-check", async (req, res) => {
     }
 });
 
-// Spotify OAuth start
-// Spotify OAuth start
+// ✅ Spotify OAuth start (DOĞRU ROUTE)
 app.get("/login", (req, res) => {
     try {
         const state = crypto.randomBytes(12).toString("hex");
@@ -397,17 +398,14 @@ app.get("/login", (req, res) => {
             "user-top-read",
             "user-read-recently-played",
             "playlist-modify-private",
-            "playlist-modify-public"
+            "playlist-modify-public",
         ].join(" ");
 
         const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
         const clientId = String(process.env.SPOTIFY_CLIENT_ID || "").trim();
 
         if (!clientId || !redirectUri) {
-            console.error("Spotify ENV eksik:", {
-                SPOTIFY_CLIENT_ID: !!clientId,
-                SPOTIFY_REDIRECT_URI: !!redirectUri
-            });
+            console.error("Spotify ENV eksik:", { SPOTIFY_CLIENT_ID: !!clientId, SPOTIFY_REDIRECT_URI: !!redirectUri });
             return res.status(500).send("Sunucu ayarı eksik: CLIENT_ID / REDIRECT_URI yok.");
         }
 
@@ -419,7 +417,7 @@ app.get("/login", (req, res) => {
             client_id: clientId,
             scope,
             redirect_uri: redirectUri,
-            state
+            state,
         });
 
         const url = `https://accounts.spotify.com/authorize?${params}`;
@@ -446,29 +444,29 @@ app.get("/callback", async (req, res) => {
         const body = new URLSearchParams({
             grant_type: "authorization_code",
             code,
-            redirect_uri: redirectUri
+            redirect_uri: redirectUri,
         });
 
-        const auth = Buffer.from(
-            process.env.SPOTIFY_CLIENT_ID + ":" + process.env.SPOTIFY_CLIENT_SECRET
-        ).toString("base64");
+        const clientId = String(process.env.SPOTIFY_CLIENT_ID || "").trim();
+        const clientSecret = String(process.env.SPOTIFY_CLIENT_SECRET || "").trim();
+        const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
         const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
             method: "POST",
             headers: {
                 Authorization: `Basic ${auth}`,
-                "Content-Type": "application/x-www-form-urlencoded"
+                "Content-Type": "application/x-www-form-urlencoded",
             },
-            body
+            body,
         });
 
-        const data = await tokenRes.json();
+        const data = await tokenRes.json().catch(() => ({}));
         if (!tokenRes.ok) {
             console.error("Spotify token error:", data);
             return res.status(500).send("Token exchange failed");
         }
 
-        // eski cookie'leri temizle
+        // cookie'leri temizle
         clearCookie(res, req, "spotify_access_token");
         clearCookie(res, req, "spotify_refresh_token");
         clearCookie(res, req, "spotify_expires_at");
@@ -490,9 +488,9 @@ app.get("/callback", async (req, res) => {
         // user upsert
         try {
             const meRes = await fetch("https://api.spotify.com/v1/me", {
-                headers: { Authorization: `Bearer ${data.access_token}` }
+                headers: { Authorization: `Bearer ${data.access_token}` },
             });
-            const me = await meRes.json();
+            const me = await meRes.json().catch(() => ({}));
             if (me?.id) await upsertUser({ spotify_id: me.id, display_name: me.display_name });
         } catch (e) {
             console.error("upsertUser failed:", e);
@@ -504,7 +502,7 @@ app.get("/callback", async (req, res) => {
         return res.status(500).send("Callback failed");
     }
 });
-    
+
 // Logout
 app.get("/logout", (req, res) => {
     try {
@@ -526,8 +524,6 @@ app.get("/switch-account", (req, res) => {
         clearCookie(res, req, "spotify_refresh_token");
         clearCookie(res, req, "spotify_expires_at");
         clearCookie(res, req, "spotify_state");
-
-        // 🔥 KRİTİK SATIR
         return res.redirect(302, "/login?force=1");
     } catch (e) {
         console.error("switch-account failed:", e);
@@ -543,7 +539,7 @@ app.get("/debug/cookies", (req, res) => {
         accessTokenPresent: Boolean(getCookie(req, "spotify_access_token")),
         refreshTokenPresent: Boolean(getCookie(req, "spotify_refresh_token")),
         expiresAt: Number(getCookie(req, "spotify_expires_at") || 0),
-        statePresent: Boolean(getCookie(req, "spotify_state"))
+        statePresent: Boolean(getCookie(req, "spotify_state")),
     });
 });
 
@@ -554,30 +550,25 @@ app.get("/api/spotify/status", async (req, res) => {
         if (!token) return res.json({ connected: false, reason: "no_token" });
 
         const r = await fetch("https://api.spotify.com/v1/me", {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         });
 
         if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
+
         if (r.status === 403) {
-            // scope karıştıysa kullanıcıyı temiz bir force-login’e zorla
             clearCookie(res, req, "spotify_access_token");
             clearCookie(res, req, "spotify_refresh_token");
             clearCookie(res, req, "spotify_expires_at");
-
-            return res.json({
-                connected: false,
-                reason: "insufficient_scope",
-                login_url: "/login?force=1"
-
-            });
+            return res.json({ connected: false, reason: "insufficient_scope", login_url: "/login?force=1" });
         }
+
         if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
 
-        const me = await r.json();
+        const me = await r.json().catch(() => ({}));
         return res.json({
             connected: true,
             user: { id: me.id, name: me.display_name },
-            premium: await isPremium(me.id)
+            premium: await isPremium(me.id),
         });
     } catch (e) {
         return res.json({ connected: false, reason: "exception", message: String(e?.message || e) });
@@ -591,7 +582,7 @@ app.get("/api/me", async (req, res) => {
         if (!token) return res.status(200).json({ ok: false, reason: "no_token" });
 
         let r = await fetch("https://api.spotify.com/v1/me", {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         });
 
         let data = await r.json().catch(() => ({}));
@@ -601,22 +592,20 @@ app.get("/api/me", async (req, res) => {
             if (refreshed) {
                 token = refreshed;
                 r = await fetch("https://api.spotify.com/v1/me", {
-                    headers: { Authorization: `Bearer ${token}` }
+                    headers: { Authorization: `Bearer ${token}` },
                 });
                 data = await r.json().catch(() => ({}));
             }
         }
 
-        if (!r.ok) {
-            return res.status(200).json({ ok: false, status: r.status, spotify_error: data });
-        }
+        if (!r.ok) return res.status(200).json({ ok: false, status: r.status, spotify_error: data });
 
         const premium = await isPremium(data.id);
 
         return res.status(200).json({
             ok: true,
             me: { id: data.id, display_name: data.display_name },
-            premium
+            premium,
         });
     } catch (e) {
         return res.status(200).json({ ok: false, reason: "exception", message: String(e?.message || e) });
@@ -633,21 +622,21 @@ app.get("/spotify/top", async (req, res) => {
 
         const [tracksRes, artistsRes] = await Promise.all([
             fetch(`https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=${timeRange}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             }),
             fetch(`https://api.spotify.com/v1/me/top/artists?limit=10&time_range=${timeRange}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
+                headers: { Authorization: `Bearer ${token}` },
+            }),
         ]);
 
-        const tracksJson = await tracksRes.json();
-        const artistsJson = await artistsRes.json();
+        const tracksJson = await tracksRes.json().catch(() => ({}));
+        const artistsJson = await artistsRes.json().catch(() => ({}));
 
         if (!tracksRes.ok) return res.status(500).json({ error: "Top tracks failed", details: tracksJson });
         if (!artistsRes.ok) return res.status(500).json({ error: "Top artists failed", details: artistsJson });
 
-        const topTracks = (tracksJson.items || []).map(t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim());
-        const topArtists = (artistsJson.items || []).map(a => a.name);
+        const topTracks = (tracksJson.items || []).map((t) => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim());
+        const topArtists = (artistsJson.items || []).map((a) => a.name);
 
         return res.json({ time_range: timeRange, topTracks, topArtists });
     } catch (err) {
@@ -663,22 +652,20 @@ app.get("/debug/spotify", async (req, res) => {
 
     try {
         const meRes = await fetch("https://api.spotify.com/v1/me", {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         });
-        const me = await meRes.json();
+        const me = await meRes.json().catch(() => ({}));
 
         const tracksRes = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=3&time_range=short_term", {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         });
-        const tracks = await tracksRes.json();
+        const tracks = await tracksRes.json().catch(() => ({}));
 
         return res.json({
             ok: true,
             me: { id: me.id, display_name: me.display_name },
             premium: await isPremium(String(me.id || "")),
-            sampleTopTracks: (tracks?.items || []).slice(0, 3).map(
-                t => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()
-            )
+            sampleTopTracks: (tracks?.items || []).slice(0, 3).map((t) => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()),
         });
     } catch (e) {
         console.error(e);
@@ -697,18 +684,18 @@ app.post("/api/generate", async (req, res) => {
         const spotifyToken = await getValidSpotifyToken(req, res);
         let spotifyProfileText = "";
 
-        // 1) Spotify profile text (optional)
+        // Spotify profile text (optional)
         if (spotifyToken) {
             const cached = spotifyProfileCache.get(spotifyToken);
             const now = Date.now();
 
-            if (cached && (now - cached.ts) < SPOTIFY_PROFILE_TTL) {
+            if (cached && now - cached.ts < SPOTIFY_PROFILE_TTL) {
                 spotifyProfileText = cached.text;
             } else {
                 try {
                     const [topTracksRes, topArtistsRes] = await Promise.all([
                         spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term"),
-                        spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term")
+                        spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term"),
                     ]);
 
                     if (topTracksRes.ok && topArtistsRes.ok) {
@@ -716,12 +703,10 @@ app.post("/api/generate", async (req, res) => {
                         const artistsJson = topArtistsRes.json;
 
                         const topTracksText = (tracksJson.items || [])
-                            .map(t => `${t.name} by ${t.artists?.[0]?.name || ""}`)
+                            .map((t) => `${t.name} by ${t.artists?.[0]?.name || ""}`)
                             .join(", ");
 
-                        const topArtistsText = (artistsJson.items || [])
-                            .map(a => a.name)
-                            .join(", ");
+                        const topArtistsText = (artistsJson.items || []).map((a) => a.name).join(", ");
 
                         spotifyProfileText = `
 User listening profile:
@@ -739,7 +724,7 @@ Use this profile to personalize the playlist.
             }
         }
 
-        // 2) Count + premium/free limit
+        // Count + premium/free limit
         const requestedCountRaw = Number(req.body?.count ?? 20);
         let requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
 
@@ -756,7 +741,7 @@ Use this profile to personalize the playlist.
         const hardMax = premium ? 200 : 40;
         requestedCount = Math.max(20, Math.min(hardMax, requestedCount));
 
-        // 3) Prompts
+        // Prompts
         const systemPrompt = `
 You are an expert music curator and playlist designer.
 You deeply understand mood, emotion, tempo, and how music guides feelings over time.
@@ -793,26 +778,26 @@ ${spotifyProfileText}
 
         const userPrompt = `User request: ${userText}\nrequested_count: ${requestedCount}`;
 
-        // 4) Schema exact count
+        // Schema exact count
         const exactSchema = structuredClone(playlistSchema);
         exactSchema.schema.properties.tracks.minItems = requestedCount;
         exactSchema.schema.properties.tracks.maxItems = requestedCount;
 
-        // 5) OpenAI call
+        // OpenAI call
         const response = await client.responses.create({
             model: "gpt-5-mini",
             input: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt }
+                { role: "user", content: userPrompt },
             ],
             text: {
                 format: {
                     type: "json_schema",
                     name: playlistSchema.name,
                     schema: exactSchema.schema,
-                    strict: true
-                }
-            }
+                    strict: true,
+                },
+            },
         });
 
         const jsonText = response.output_text;
@@ -868,7 +853,6 @@ async function saveSpotifyPlaylist(req, res) {
 
         if (!tracks.length) return res.status(400).json({ error: "Missing tracks" });
 
-        // Create Spotify playlist
         const created = await spotifyCreatePlaylist(req, res, me.id, title, description);
         if (!created.ok) {
             console.error("create playlist failed:", created.json || created.text);
@@ -878,7 +862,6 @@ async function saveSpotifyPlaylist(req, res) {
         const playlistId = created.json?.id;
         if (!playlistId) return res.status(500).json({ error: "create playlist returned no id" });
 
-        // Build track URIs
         const uris = [];
         for (const t of tracks) {
             const artist = normalizeStr(t?.artist);
@@ -890,9 +873,7 @@ async function saveSpotifyPlaylist(req, res) {
             if (hit?.uri) uris.push(hit.uri);
         }
 
-        if (!uris.length) {
-            return res.status(400).json({ error: "No Spotify matches found for provided tracks" });
-        }
+        if (!uris.length) return res.status(400).json({ error: "No Spotify matches found for provided tracks" });
 
         const addRes = await spotifyAddTracks(req, res, playlistId, uris);
         if (!addRes.ok) {
@@ -911,7 +892,7 @@ async function saveSpotifyPlaylist(req, res) {
             playlistId,
             url: created.json?.external_urls?.spotify || null,
             added: uris.length,
-            premium
+            premium,
         });
     } catch (e) {
         console.error("saveSpotifyPlaylist crash:", e);
@@ -949,11 +930,7 @@ app.post("/api/admin/codes/create", async (req, res) => {
 
         const codeObj = await createRedeemCode({ days, max_uses, note });
 
-        return res.json({
-            ok: true,
-            code: codeObj?.code || null,
-            meta: codeObj || null
-        });
+        return res.json({ ok: true, code: codeObj?.code || null, meta: codeObj || null });
     } catch (e) {
         console.error("codes/create failed:", e);
         return res.status(500).json({ ok: false, error: String(e?.message || e) });
@@ -1032,7 +1009,8 @@ app.get("/admin", async (req, res) => {
     <div class="card"><b>Active 24h</b><div>${stats.active24h ?? 0}</div></div>
     <div class="card"><b>Total events</b><div>${stats.totalEvents ?? 0}</div></div>
   </div>
-    <h2>Redeem Code Generator</h2>
+
+  <h2>Redeem Code Generator</h2>
   <div class="card" style="max-width:520px">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <label>Days <input id="days" type="number" value="30" min="1" style="width:80px"></label>
@@ -1069,7 +1047,6 @@ app.get("/admin", async (req, res) => {
     };
   </script>
 
-
   <table>
     <thead>
       <tr>
@@ -1088,25 +1065,19 @@ app.get("/admin", async (req, res) => {
         return res.status(500).send("Admin crashed. Check logs.");
     }
 });
-app.get("/api/redeem", (req, res) => {
-    res.status(405).send("Use POST /api/redeem with JSON body: {code:\"...\"}");
+
+app.get("/api/redeem", (req, res) => res.status(405).send('Use POST /api/redeem with JSON body: {code:"..."}'));
+app.get("/api/admin/codes/create", (req, res) => res.status(405).send("Use POST /api/admin/codes/create (admin token required)."));
+
+// --- boot ---
+const port = process.env.PORT || 8787;
+
+(async () => {
+    await initDb();
+    app.listen(port, () => {
+        console.log(`Spotimaker running on http://localhost:${port}`);
+    });
+})().catch((e) => {
+    console.error("BOOT ERROR:", e);
+    process.exit(1);
 });
-
-app.get("/api/admin/codes/create", (req, res) => {
-    res.status(405).send("Use POST /api/admin/codes/create (admin token required).");
-});
-
-        // Static LAST
-        app.use(express.static(path.join(__dirname, "public")));
-
-        const port = process.env.PORT || 8787;
-
-        (async () => {
-            await initDb();
-            app.listen(port, () => {
-                console.log(`Spotimaker running on http://localhost:${port}`);
-            });
-        })().catch((e) => {
-            console.error("BOOT ERROR:", e)
-            process.exit(1);
-        });
