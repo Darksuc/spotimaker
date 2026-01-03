@@ -76,6 +76,52 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const spotifyProfileCache = new Map(); // key: access_token -> { text, ts }
 const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 min
 
+// ---- premium intent cache (per user, ephemeral) ----
+const intentPlanCache = new Map(); // key: spotify_user_id -> { plan, text, count, ts }
+const INTENT_PLAN_TTL = 30 * 60 * 1000; // 30 min
+
+async function getSpotifyProfileText(req, res, spotifyToken) {
+    if (!spotifyToken) return "";
+
+    const cached = spotifyProfileCache.get(spotifyToken);
+    const now = Date.now();
+
+    if (cached && now - cached.ts < SPOTIFY_PROFILE_TTL) {
+        return cached.text;
+    }
+
+    try {
+        const [topTracksRes, topArtistsRes] = await Promise.all([
+            spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term"),
+            spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term"),
+        ]);
+
+        if (topTracksRes.ok && topArtistsRes.ok) {
+            const tracksJson = topTracksRes.json;
+            const artistsJson = topArtistsRes.json;
+
+            const topTracksText = (tracksJson.items || [])
+                .map((t) => `${t.name} by ${t.artists?.[0]?.name || ""}`)
+                .join(", ");
+
+            const topArtistsText = (artistsJson.items || []).map((a) => a.name).join(", ");
+
+            const spotifyProfileText = `
+User listening profile:
+Top artists: ${topArtistsText}
+Top tracks: ${topTracksText}
+`.trim();
+
+            spotifyProfileCache.set(spotifyToken, { text: spotifyProfileText, ts: now });
+            return spotifyProfileText;
+        }
+    } catch (e) {
+        console.error("Spotify profile fetch failed", e);
+    }
+
+    return "";
+}
+
 /* -----------------------------
    Cookie helpers (HttpOnly)
 ------------------------------ */
@@ -176,6 +222,57 @@ function buildEnergyCurve(n) {
     return arr;
 }
 
+function smoothEnergyCurve(curve, targetLength) {
+    const fallback = buildEnergyCurve(targetLength);
+    const out = [];
+    const src = Array.isArray(curve) ? curve : [];
+
+    for (let i = 0; i < targetLength; i++) {
+        const fallbackVal = fallback[i] ?? 5;
+        const raw = Number(src[i]);
+        const val = Number.isFinite(raw) ? Math.max(1, Math.min(10, Math.round(raw))) : fallbackVal;
+
+        if (i > 0) {
+            const prev = out[i - 1];
+            if (Math.abs(val - prev) > 3) {
+                const step = val > prev ? 2 : -2;
+                out.push(Math.max(1, Math.min(10, prev + step)));
+                continue;
+            }
+        }
+
+        out.push(val);
+    }
+
+    return out.length ? out : fallback;
+}
+
+async function safeIsPremiumUser(spotifyId) {
+    if (!spotifyId) return false;
+    try {
+        return await isPremium(spotifyId);
+    } catch (e) {
+        console.error("safeIsPremiumUser failed", e);
+        return false;
+    }
+}
+
+function setIntentPlanForUser(spotifyId, plan, text, count) {
+    if (!spotifyId || !plan) return;
+    intentPlanCache.set(spotifyId, { plan, text, count, ts: Date.now() });
+}
+
+function getIntentPlanForUser(spotifyId) {
+    if (!spotifyId) return null;
+    const entry = intentPlanCache.get(spotifyId);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > INTENT_PLAN_TTL) {
+        intentPlanCache.delete(spotifyId);
+        return null;
+    }
+    return entry;
+}
+
 /* -----------------------------
    Schemas
 ------------------------------ */
@@ -210,6 +307,49 @@ const playlistSchema = {
             },
         },
         required: ["language", "title", "description", "vibe_tags", "tracks"],
+    },
+};
+
+const intentSchema = {
+    name: "spotimaker_intent",
+    schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+            primary_mood: { type: "string", minLength: 2, maxLength: 48 },
+            secondary_mood: { type: "string", minLength: 0, maxLength: 48 },
+            activity: { type: "string", minLength: 2, maxLength: 120 },
+            energy_curve: {
+                type: "array",
+                minItems: 5,
+                maxItems: 200,
+                items: { type: "integer", minimum: 1, maximum: 10 },
+            },
+            tempo_range: { type: "string", minLength: 2, maxLength: 60 },
+            familiarity_bias: { type: "string", minLength: 2, maxLength: 120 },
+            do_not_include: {
+                type: "array",
+                minItems: 0,
+                maxItems: 10,
+                items: { type: "string", minLength: 1, maxLength: 80 },
+            },
+            vibe_keywords: {
+                type: "array",
+                minItems: 3,
+                maxItems: 12,
+                items: { type: "string", minLength: 2, maxLength: 60 },
+            },
+        },
+        required: [
+            "primary_mood",
+            "secondary_mood",
+            "activity",
+            "energy_curve",
+            "tempo_range",
+            "familiarity_bias",
+            "do_not_include",
+            "vibe_keywords",
+        ],
     },
 };
 
@@ -379,6 +519,30 @@ async function getSpotifyMeId(req, res) {
     const { ok, me } = await spotifyMe(req, res);
     if (!ok || !me?.id) return "";
     return String(me.id);
+}
+
+async function resolveUserSession(req, res) {
+    const spotifyToken = await getValidSpotifyToken(req, res);
+    let spotifyId = "";
+    let premium = false;
+    let displayName = "";
+
+    if (spotifyToken) {
+        try {
+            const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
+            if (meRes.ok && meRes.json?.id) {
+                spotifyId = String(meRes.json.id);
+                displayName = String(meRes.json.display_name || "");
+                premium = await safeIsPremiumUser(spotifyId);
+            }
+        } catch (e) {
+            console.error("resolveUserSession /me failed", e);
+        }
+    }
+
+    const spotifyProfileText = await getSpotifyProfileText(req, res, spotifyToken);
+
+    return { spotifyToken, spotifyId, premium, spotifyProfileText, displayName };
 }
 
 /* -----------------------------
@@ -731,77 +895,106 @@ app.get("/debug/spotify", async (req, res) => {
 /* -----------------------------
    AI generate
 ------------------------------ */
-app.post("/api/generate", async (req, res) => {
-    const userText = String(req.body?.text ?? "").trim();
-    if (!userText) return res.status(400).json({ error: "Missing text" });
+async function analyzeIntentPlan({ userText, requestedCount, spotifyProfileText }) {
+    const intentPrompt = `
+You are the Intent Analyzer for a premium music curation service.
+Summarize the user's goal into a concise JSON plan.
+Focus on the emotional arc, activity, and how familiar vs. discovery-focused the songs should feel.
+Energy curve must span the full playlist with gradual shifts (avoid jumps > 2 points between neighbors).
 
-    if (userText.length > 2000) {
-        return res.status(400).json({ error: "Text too long (max 2000 chars)" });
-    }
-
-    try {
-        const spotifyToken = await getValidSpotifyToken(req, res);
-        let spotifyProfileText = "";
-
-        // Spotify profile text (optional)
-        if (spotifyToken) {
-            const cached = spotifyProfileCache.get(spotifyToken);
-            const now = Date.now();
-
-            if (cached && now - cached.ts < SPOTIFY_PROFILE_TTL) {
-                spotifyProfileText = cached.text;
-            } else {
-                try {
-                    const [topTracksRes, topArtistsRes] = await Promise.all([
-                        spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term"),
-                        spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term"),
-                    ]);
-
-                    if (topTracksRes.ok && topArtistsRes.ok) {
-                        const tracksJson = topTracksRes.json;
-                        const artistsJson = topArtistsRes.json;
-
-                        const topTracksText = (tracksJson.items || [])
-                            .map((t) => `${t.name} by ${t.artists?.[0]?.name || ""}`)
-                            .join(", ");
-
-                        const topArtistsText = (artistsJson.items || []).map((a) => a.name).join(", ");
-
-                        spotifyProfileText = `
-User listening profile:
-Top artists: ${topArtistsText}
-Top tracks: ${topTracksText}
-
-Use this profile to personalize the playlist.
+User text: ${userText}
+requested_count: ${requestedCount}
+${spotifyProfileText ? `Listener context: ${spotifyProfileText}` : ""}
 `.trim();
 
-                        spotifyProfileCache.set(spotifyToken, { text: spotifyProfileText, ts: now });
-                    }
-                } catch (e) {
-                    console.error("Spotify profile fetch failed", e);
-                }
-            }
-        }
+    const response = await client.responses.create({
+        model: "gpt-5-mini",
+        input: [
+            {
+                role: "system",
+                content:
+                    "Extract an intent plan for a playlist. Return only the JSON schema fields. Do not include narration or explanations.",
+            },
+            { role: "user", content: intentPrompt },
+        ],
+        text: {
+            format: {
+                type: "json_schema",
+                name: intentSchema.name,
+                schema: intentSchema.schema,
+                strict: true,
+            },
+        },
+    });
 
-        // Count + premium/free limit
-        const requestedCountRaw = Number(req.body?.count ?? 20);
-        let requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
+    const jsonText = response.output_text;
+    const plan = JSON.parse(jsonText);
+    plan.energy_curve = smoothEnergyCurve(plan.energy_curve, requestedCount);
+    return plan;
+}
 
-        let premium = false;
-        try {
-            if (spotifyToken) {
-                const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
-                if (meRes.ok && meRes.json?.id) premium = await isPremium(meRes.json.id);
-            }
-        } catch (e) {
-            console.error("premium check failed", e);
-        }
+async function generatePlaylistFromIntent({
+    userText,
+    requestedCount,
+    spotifyProfileText,
+    intentPlan,
+}) {
+    const systemPrompt = `
+You are a premium music director crafting intentional, human-feeling playlists.
 
-        const hardMax = premium ? 200 : 40;
-        requestedCount = Math.max(20, Math.min(hardMax, requestedCount));
+Premium intent plan (never expose to the user):
+${JSON.stringify(intentPlan, null, 2)}
 
-        // Prompts
-        const systemPrompt = `
+STRICT RULES:
+- You will be given requested_count and must return exactly that many tracks.
+- Obey the intent plan's energy_curve to keep a smooth progression; avoid abrupt jumps.
+- Never place tracks by the same artist back-to-back.
+- Honor do_not_include terms when picking artists or songs.
+- Respect the familiarity_bias: keep a familiar core and sprinkle tasteful discovery (roughly 70/30 unless specified).
+- Follow tempo_range, primary_mood, secondary_mood, activity, and vibe_keywords when choosing tracks.
+- Language rule: if the user writes in Turkish, set language="tr" and write title+description in Turkish; otherwise use English.
+- Use plain ASCII characters only. Do not use smart quotes or special symbols.
+- Avoid fake songs. Prefer widely available tracks.
+- Output MUST be valid JSON matching the playlist schema, no explanations.
+
+Discovery balance:
+- Keep the playlist approachable with known artists, but weave in discovery choices aligned with the vibe_keywords.
+- Do not repeat the same artist more than twice, and never consecutively.
+`.trim();
+
+    const userPrompt = `
+User request: ${userText}
+requested_count: ${requestedCount}
+Intent energy guidance: ${intentPlan.energy_curve.join(", ")}
+Familiarity: ${intentPlan.familiarity_bias}
+${spotifyProfileText ? `Listener context: ${spotifyProfileText}` : ""}
+`.trim();
+
+    const exactSchema = structuredClone(playlistSchema);
+    exactSchema.schema.properties.tracks.minItems = requestedCount;
+    exactSchema.schema.properties.tracks.maxItems = requestedCount;
+
+    const response = await client.responses.create({
+        model: "gpt-5-mini",
+        input: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+        ],
+        text: {
+            format: {
+                type: "json_schema",
+                name: playlistSchema.name,
+                schema: exactSchema.schema,
+                strict: true,
+            },
+        },
+    });
+
+    return response.output_text;
+}
+
+async function generateFreePlaylist({ userText, requestedCount, spotifyProfileText }) {
+    const systemPrompt = `
 You are an expert music curator and playlist designer.
 You deeply understand mood, emotion, tempo, and how music guides feelings over time.
 
@@ -835,29 +1028,62 @@ Use simple apostrophes and standard characters only.
 ${spotifyProfileText}
 `.trim();
 
-        const userPrompt = `User request: ${userText}\nrequested_count: ${requestedCount}`;
+    const userPrompt = `User request: ${userText}\nrequested_count: ${requestedCount}`;
 
-        const exactSchema = structuredClone(playlistSchema);
-        exactSchema.schema.properties.tracks.minItems = requestedCount;
-        exactSchema.schema.properties.tracks.maxItems = requestedCount;
+    const exactSchema = structuredClone(playlistSchema);
+    exactSchema.schema.properties.tracks.minItems = requestedCount;
+    exactSchema.schema.properties.tracks.maxItems = requestedCount;
 
-        const response = await client.responses.create({
-            model: "gpt-5-mini",
-            input: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-            ],
-            text: {
-                format: {
-                    type: "json_schema",
-                    name: playlistSchema.name,
-                    schema: exactSchema.schema,
-                    strict: true,
-                },
+    const response = await client.responses.create({
+        model: "gpt-5-mini",
+        input: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+        ],
+        text: {
+            format: {
+                type: "json_schema",
+                name: playlistSchema.name,
+                schema: exactSchema.schema,
+                strict: true,
             },
-        });
+        },
+    });
 
-        const jsonText = response.output_text;
+    return response.output_text;
+}
+
+app.post("/api/generate", async (req, res) => {
+    const userText = String(req.body?.text ?? "").trim();
+    if (!userText) return res.status(400).json({ error: "Missing text" });
+
+    if (userText.length > 2000) {
+        return res.status(400).json({ error: "Text too long (max 2000 chars)" });
+    }
+
+    try {
+        const { spotifyId, premium, spotifyProfileText } = await resolveUserSession(req, res);
+
+        // Count + premium/free limit
+        const requestedCountRaw = Number(req.body?.count ?? 20);
+        let requestedCount = Math.max(20, Math.min(200, Number.isFinite(requestedCountRaw) ? requestedCountRaw : 20));
+        const hardMax = premium ? 200 : 40;
+        requestedCount = Math.max(20, Math.min(hardMax, requestedCount));
+
+        let jsonText;
+        let intentPlan = null;
+
+        if (premium) {
+            intentPlan = await analyzeIntentPlan({ userText, requestedCount, spotifyProfileText });
+            jsonText = await generatePlaylistFromIntent({
+                userText,
+                requestedCount,
+                spotifyProfileText,
+                intentPlan,
+            });
+        } else {
+            jsonText = await generateFreePlaylist({ userText, requestedCount, spotifyProfileText });
+        }
 
         let data;
         try {
@@ -867,13 +1093,17 @@ ${spotifyProfileText}
             return res.status(400).json({ error: "AI returned invalid JSON" });
         }
 
-        data.energy_curve = buildEnergyCurve(data.tracks?.length || requestedCount);
+        const targetLength = data.tracks?.length || requestedCount;
+        data.energy_curve = premium
+            ? smoothEnergyCurve(intentPlan?.energy_curve, targetLength)
+            : buildEnergyCurve(targetLength);
 
         try {
-            if (spotifyToken) {
-                const meId = await getSpotifyMeId(req, res);
-                if (meId) await markPlaylistCreated(meId, `count=${requestedCount}`);
+            if (premium && spotifyId && intentPlan) {
+                setIntentPlanForUser(spotifyId, intentPlan, userText, requestedCount);
             }
+
+            if (spotifyId) await markPlaylistCreated(spotifyId, `count=${requestedCount}`);
         } catch (e) {
             console.error("markPlaylistCreated failed:", e);
         }
@@ -882,6 +1112,55 @@ ${spotifyProfileText}
         return res.json(data);
     } catch (e) {
         console.error("generate crash:", e);
+        return res.status(500).json({ error: String(e?.message || e) });
+    }
+});
+
+app.post("/api/refresh", async (req, res) => {
+    try {
+        const { spotifyId, premium, spotifyProfileText } = await resolveUserSession(req, res);
+
+        if (!spotifyId) return res.status(401).json({ error: "Spotify not connected" });
+        if (!premium) return res.status(403).json({ error: "Premium required" });
+
+        const cached = getIntentPlanForUser(spotifyId);
+        if (!cached?.plan || !cached?.text) {
+            return res.status(400).json({ error: "No intent available" });
+        }
+
+        const intentPlan = cached.plan;
+        const userText = cached.text;
+        const requestedCount = Math.max(20, Math.min(200, Number(cached.count) || 20));
+
+        const jsonText = await generatePlaylistFromIntent({
+            userText,
+            requestedCount,
+            spotifyProfileText,
+            intentPlan,
+        });
+
+        let data;
+        try {
+            data = JSON.parse(jsonText);
+        } catch (err) {
+            console.error("refresh AI invalid JSON:", jsonText?.slice?.(0, 300));
+            return res.status(400).json({ error: "AI returned invalid JSON" });
+        }
+
+        const targetLength = data.tracks?.length || requestedCount;
+        data.energy_curve = smoothEnergyCurve(intentPlan.energy_curve, targetLength);
+
+        try {
+            setIntentPlanForUser(spotifyId, intentPlan, userText, requestedCount);
+            await markPlaylistCreated(spotifyId, `refresh_count=${requestedCount}`);
+        } catch (e) {
+            console.error("refresh markPlaylistCreated failed:", e);
+        }
+
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        return res.json(data);
+    } catch (e) {
+        console.error("refresh crash:", e);
         return res.status(500).json({ error: String(e?.message || e) });
     }
 });
