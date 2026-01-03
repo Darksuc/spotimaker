@@ -385,6 +385,7 @@ app.get("/api/admin/db-check", async (req, res) => {
 });
 
 // Spotify OAuth start
+// Spotify OAuth start
 app.get("/login", (req, res) => {
     try {
         const state = crypto.randomBytes(12).toString("hex");
@@ -425,7 +426,7 @@ app.get("/login", (req, res) => {
         console.log("SPOTIFY_AUTHORIZE_URL", url);
         return res.redirect(url);
     } catch (e) {
-        console.error("/login?force=1 crashed:", e);
+        console.error("/login crashed:", e);
         return res.status(500).send("Spotify giriş başlatılırken hata: " + (e?.message || String(e)));
     }
 });
