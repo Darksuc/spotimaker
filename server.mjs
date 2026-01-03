@@ -257,9 +257,9 @@ async function safeIsPremiumUser(spotifyId) {
     }
 }
 
-function setIntentPlanForUser(spotifyId, plan, text, count) {
+function setIntentPlanForUser(spotifyId, plan, text, count, playlist = null) {
     if (!spotifyId || !plan) return;
-    intentPlanCache.set(spotifyId, { plan, text, count, ts: Date.now() });
+    intentPlanCache.set(spotifyId, { plan, text, count, playlist, ts: Date.now() });
 }
 
 function getIntentPlanForUser(spotifyId) {
@@ -325,6 +325,35 @@ const intentSchema = {
                 maxItems: 200,
                 items: { type: "integer", minimum: 1, maximum: 10 },
             },
+            energy_curve_segments: {
+                type: "array",
+                minItems: 3,
+                maxItems: 6,
+                items: { type: "string", minLength: 2, maxLength: 60 },
+            },
+            genre_anchors: {
+                type: "array",
+                minItems: 1,
+                maxItems: 8,
+                items: { type: "string", minLength: 2, maxLength: 60 },
+            },
+            language_mix: { type: "string", minLength: 2, maxLength: 60 },
+            avoid_repeats_rules: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    artist_back_to_back: { type: "boolean" },
+                    artist_per_playlist: { type: "integer", minimum: 1, maximum: 5 },
+                    decade_repeat_limit: { type: "integer", minimum: 1, maximum: 10 },
+                    genre_repeat_limit: { type: "integer", minimum: 1, maximum: 10 },
+                },
+                required: [
+                    "artist_back_to_back",
+                    "artist_per_playlist",
+                    "decade_repeat_limit",
+                    "genre_repeat_limit",
+                ],
+            },
             tempo_range: { type: "string", minLength: 2, maxLength: 60 },
             familiarity_bias: { type: "string", minLength: 2, maxLength: 120 },
             do_not_include: {
@@ -349,6 +378,10 @@ const intentSchema = {
             "familiarity_bias",
             "do_not_include",
             "vibe_keywords",
+            "energy_curve_segments",
+            "genre_anchors",
+            "language_mix",
+            "avoid_repeats_rules",
         ],
     },
 };
@@ -898,9 +931,12 @@ app.get("/debug/spotify", async (req, res) => {
 async function analyzeIntentPlan({ userText, requestedCount, spotifyProfileText }) {
     const intentPrompt = `
 You are the Intent Analyzer for a premium music curation service.
-Summarize the user's goal into a concise JSON plan.
-Focus on the emotional arc, activity, and how familiar vs. discovery-focused the songs should feel.
+Summarize the user's goal into a concise JSON plan with extra structure for flow and variety.
+Focus on mood, activity, tempo, energy pacing, and familiarity vs. discovery balance.
 Energy curve must span the full playlist with gradual shifts (avoid jumps > 2 points between neighbors).
+Define 3-5 energy_curve_segments (intro / build / peak / outro style) to guide transitions.
+Add genre_anchors (core styles to stick to) and language_mix (TR/EN ratio if implied by the request).
+Set avoid_repeats_rules to prevent artist/decade/genre fatigue.
 
 User text: ${userText}
 requested_count: ${requestedCount}
@@ -930,6 +966,27 @@ ${spotifyProfileText ? `Listener context: ${spotifyProfileText}` : ""}
     const jsonText = response.output_text;
     const plan = JSON.parse(jsonText);
     plan.energy_curve = smoothEnergyCurve(plan.energy_curve, requestedCount);
+
+    if (!Array.isArray(plan.energy_curve_segments) || !plan.energy_curve_segments.length) {
+        plan.energy_curve_segments = ["intro", "flow", "peak", "outro"];
+    }
+
+    if (!Array.isArray(plan.genre_anchors) || !plan.genre_anchors.length) {
+        plan.genre_anchors = ["pop"];
+    }
+
+    if (!plan.language_mix) {
+        plan.language_mix = "TR ağırlıklı";
+    }
+
+    if (!plan.avoid_repeats_rules) {
+        plan.avoid_repeats_rules = {
+            artist_back_to_back: true,
+            artist_per_playlist: 2,
+            decade_repeat_limit: 6,
+            genre_repeat_limit: 6,
+        };
+    }
     return plan;
 }
 
@@ -938,6 +995,7 @@ async function generatePlaylistFromIntent({
     requestedCount,
     spotifyProfileText,
     intentPlan,
+    previousPlaylist,
 }) {
     const systemPrompt = `
 You are a premium music director crafting intentional, human-feeling playlists.
@@ -947,27 +1005,35 @@ ${JSON.stringify(intentPlan, null, 2)}
 
 STRICT RULES:
 - You will be given requested_count and must return exactly that many tracks.
-- Obey the intent plan's energy_curve to keep a smooth progression; avoid abrupt jumps.
-- Never place tracks by the same artist back-to-back.
-- Honor do_not_include terms when picking artists or songs.
-- Respect the familiarity_bias: keep a familiar core and sprinkle tasteful discovery (roughly 70/30 unless specified).
+- Obey the intent plan's energy_curve and energy_curve_segments to keep a smooth intro → flow → peak → outro progression; avoid abrupt jumps.
+- Use intentPlan.genre_anchors as guardrails; no abrupt genre jumps unless the user asked for chaos. Prefer bridge tracks when shifting styles.
+- Honor language_mix (e.g., TR/EN ratio) and keep the title + description in the matching language.
+- Honor avoid_repeats_rules (artist_back_to_back, artist_per_playlist, decade_repeat_limit, genre_repeat_limit). Never place tracks by the same artist back-to-back.
+- Maintain a familiar/discovery balance ~70/30 unless specified. Keep approachable core, tasteful discovery.
 - Follow tempo_range, primary_mood, secondary_mood, activity, and vibe_keywords when choosing tracks.
-- Language rule: if the user writes in Turkish, set language="tr" and write title+description in Turkish; otherwise use English.
-- Use plain ASCII characters only. Do not use smart quotes or special symbols.
+- Mention the flow structure explicitly in the description (e.g., "Tracks 1-4 warm-up, 5-12 akış, 13-20 doruk/outro").
+- Use plain ASCII characters only. Do not use smart quotes or special symbols. Ensure vibe_tags are clean words without stray quotes.
 - Avoid fake songs. Prefer widely available tracks.
 - Output MUST be valid JSON matching the playlist schema, no explanations.
 
 Discovery balance:
-- Keep the playlist approachable with known artists, but weave in discovery choices aligned with the vibe_keywords.
-- Do not repeat the same artist more than twice, and never consecutively.
+- Keep 70% familiar vibe and 30% discovery unless intentPlan.familiarity_bias says otherwise.
+- Do not repeat the same artist more than intentPlan.avoid_repeats_rules.artist_per_playlist times, and never consecutively.
+- If a previous playlist is provided, change at least 50% of the tracks while keeping the same mood/activity/tempo band and the intent energy curve.
 `.trim();
 
-    const userPrompt = `
+const userPrompt = `
 User request: ${userText}
 requested_count: ${requestedCount}
 Intent energy guidance: ${intentPlan.energy_curve.join(", ")}
 Familiarity: ${intentPlan.familiarity_bias}
+Energy segments: ${intentPlan.energy_curve_segments?.join(" -> ") || "intro, flow, peak, outro"}
+Genres to anchor: ${intentPlan.genre_anchors?.join(", ")}
+Language mix: ${intentPlan.language_mix}
 ${spotifyProfileText ? `Listener context: ${spotifyProfileText}` : ""}
+${previousPlaylist ? `Previous tracklist for alternatives: ${(previousPlaylist.tracks || [])
+    .map((t) => `${t.artist} - ${t.song}`)
+    .join(" | ")}` : ""}
 `.trim();
 
     const exactSchema = structuredClone(playlistSchema);
@@ -995,35 +1061,19 @@ ${spotifyProfileText ? `Listener context: ${spotifyProfileText}` : ""}
 
 async function generateFreePlaylist({ userText, requestedCount, spotifyProfileText }) {
     const systemPrompt = `
-You are an expert music curator and playlist designer.
-You deeply understand mood, emotion, tempo, and how music guides feelings over time.
+You are a lightweight playlist maker. Keep it mainstream-friendly and simple.
 
-STRICT RULES:
-- You will be given requested_count.
-- You MUST return exactly requested_count tracks.
-- Follow the user's mood, energy, language, and era strictly.
-- If the user provides example songs or artists, include at least one of them in the playlist.
-- Match the overall vibe to the examples given.
-- Avoid generic or unrelated songs.
-- Use plain ASCII characters only.
+BASIC RULES ONLY:
+- You will be given requested_count and must return exactly that many tracks.
+- Avoid putting the same artist back-to-back; cap any artist at 2 appearances.
+- Keep song picks safe and popular; stay within the user's broad vibe without over-curating.
+- Respect the user's language: if they write in Turkish, set language="tr" and use Turkish for title/description; otherwise English.
+- Keep title short and plain. Tags should be simple words (no quotes).
+- Use plain ASCII characters only. No smart quotes or fancy punctuation.
 - Output MUST be valid JSON only, matching the provided schema.
-- Do not invent fake songs. Prefer widely available tracks.
-- Avoid repeating the same artist more than 2 times.
 
-Language rule:
-- If the user writes in Turkish, set language="tr" and write title+description in Turkish.
-- If the user writes in English, set language="en" and write title+description in English.
-- Do not mix languages in title/description.
-
-Emotional arc rule:
-- Tracks 1-5: ease-in / set the mood
-- Tracks 6-15: main emotional peak
-- Tracks 16-20: resolution based on user input
-
-IMPORTANT:
-Use plain ASCII characters only.
-Do not use smart quotes, special punctuation, or non-ASCII symbols.
-Use simple apostrophes and standard characters only.
+Flow guidance (keep it simple, not too strict):
+- Early tracks ease in, middle has the main energy, final tracks land softly.
 
 ${spotifyProfileText}
 `.trim();
@@ -1080,6 +1130,7 @@ app.post("/api/generate", async (req, res) => {
                 requestedCount,
                 spotifyProfileText,
                 intentPlan,
+                previousPlaylist: null,
             });
         } else {
             jsonText = await generateFreePlaylist({ userText, requestedCount, spotifyProfileText });
@@ -1100,7 +1151,7 @@ app.post("/api/generate", async (req, res) => {
 
         try {
             if (premium && spotifyId && intentPlan) {
-                setIntentPlanForUser(spotifyId, intentPlan, userText, requestedCount);
+                setIntentPlanForUser(spotifyId, intentPlan, userText, requestedCount, data);
             }
 
             if (spotifyId) await markPlaylistCreated(spotifyId, `count=${requestedCount}`);
@@ -1137,6 +1188,7 @@ app.post("/api/refresh", async (req, res) => {
             requestedCount,
             spotifyProfileText,
             intentPlan,
+            previousPlaylist: cached.playlist,
         });
 
         let data;
@@ -1151,7 +1203,7 @@ app.post("/api/refresh", async (req, res) => {
         data.energy_curve = smoothEnergyCurve(intentPlan.energy_curve, targetLength);
 
         try {
-            setIntentPlanForUser(spotifyId, intentPlan, userText, requestedCount);
+            setIntentPlanForUser(spotifyId, intentPlan, userText, requestedCount, data);
             await markPlaylistCreated(spotifyId, `refresh_count=${requestedCount}`);
         } catch (e) {
             console.error("refresh markPlaylistCreated failed:", e);

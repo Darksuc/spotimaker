@@ -250,6 +250,11 @@
                 background: rgba(255,255,255,.09);
             }
 
+        .ghost-btn[disabled] {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+
         .slider-wrap {
             margin-top: 14px;
             padding: 14px;
@@ -369,6 +374,36 @@
             background: rgba(239,68,68,.06);
         }
 
+        .inline-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,.85);
+            font-size: 13px;
+        }
+
+        .mini-card {
+            margin-top: 12px;
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px dashed rgba(255,255,255,.25);
+            background: rgba(255,255,255,.04);
+        }
+
+        .mini-card h4 {
+            margin: 0 0 6px;
+            font-size: 16px;
+        }
+
+        .mini-card ul {
+            margin: 6px 0 10px 18px;
+        }
+
+        .mini-card li {
+            margin: 4px 0;
+            color: rgba(255,255,255,.82);
+        }
+
         @media (max-width:560px) {
             .h1 {
                 font-size: 24px;
@@ -462,6 +497,12 @@
                 <div class="loadingSub" id="loadingSub">Bu genelde birkaç saniye sürer.</div>
             </div>
 
+            <div id="refreshArea" class="row" style="display:none; margin-top:12px; align-items:center; gap:10px;">
+                <button id="refreshBtn" class="ghost-btn">🔁 Alternatif üret (Premium)</button>
+                <span id="refreshHint" class="hint"></span>
+            </div>
+            <div id="refreshStatus" class="hint" style="display:none; margin-top:4px;">Alternatif hazırlanıyor…</div>
+
             <div id="out"></div>
         </main>
     </div>
@@ -502,11 +543,18 @@
         // ---------- global state ----------
         let __isPremium = false;
         let lastPlaylist = null;
+        let lastPrompt = "";
 
         // ---------- DOM ----------
         const btn = document.getElementById("btn");
         const text = document.getElementById("text");
         const out = document.getElementById("out");
+
+        const refreshArea = document.getElementById("refreshArea");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const refreshHint = document.getElementById("refreshHint");
+        const refreshStatus = document.getElementById("refreshStatus");
+        if (refreshStatus) refreshStatus.dataset.loading = "0";
 
         const countInput = document.getElementById("count");
         const countHint = document.getElementById("countHint");
@@ -544,6 +592,7 @@
             if (goPremium) goPremium.style.display = __isPremium ? "none" : "inline-block";
 
             updateCountHint();
+            updateRefreshUI();
         }
 
         function updateCountHint() {
@@ -567,6 +616,37 @@
                 countHint.innerHTML =
                     "ℹ️ <b>Free:</b> 40 şarkıya kadar. Premium ile 200’e kadar.";
                 countHint.style.color = "rgba(255,255,255,.75)";
+            }
+        }
+
+        function updateRefreshUI() {
+            if (!refreshArea || !refreshBtn) return;
+
+            if (!lastPlaylist) {
+                refreshArea.style.display = "none";
+                refreshStatus.style.display = "none";
+                refreshStatus.dataset.loading = "0";
+                return;
+            }
+
+            refreshArea.style.display = "flex";
+
+            if (__isPremium) {
+                refreshArea.style.cursor = "default";
+                refreshArea.onclick = null;
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = "🔁 Alternatif üret (Premium)";
+                refreshHint.textContent = "Aynı vibe, yeni akış alternatifi.";
+            } else {
+                refreshArea.style.cursor = "pointer";
+                refreshArea.onclick = () => (window.location.href = "/premium.html");
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = "🔁 Alternatif üret (Premium)";
+                refreshHint.textContent = "Premium’da aynı vibe’ın 1 tıkla alternatifleri var.";
+            }
+
+            if (refreshStatus.dataset.loading === "1") {
+                refreshStatus.style.display = "block";
             }
         }
 
@@ -701,45 +781,17 @@
             return j;
         }
 
-        // ---------- generate ----------
-        btn.onclick = async () => {
-            const requested = Number(countInput?.value || 20);
-            if (!__isPremium && requested > 40) {
-                showToast(`Free plan: ${requested} seçtin → 40 şarkıya düşürülecek. Premium ile 200'e çık.`);
-            }
+        function renderPlaylist(data) {
+            if (!data) return;
+            lastPlaylist = data;
 
-            if (btn.dataset.loading === "1") return;
-            btn.dataset.loading = "1";
+            const tracksHtml = (data.tracks || [])
+                .map(t => `<li>${escapeHtml(t.artist)} - ${escapeHtml(t.song)}</li>`)
+                .join("");
 
-            out.innerHTML = "";
-            out.className = "";
-            btn.disabled = true;
-            startLoading();
+            const tags = Array.isArray(data.vibe_tags) ? data.vibe_tags.join(", ") : "";
 
-            try {
-                const payload = {
-                    text: text.value,
-                    count: Number(countInput?.value || 20)
-                };
-
-                const resp = await fetch("/api/generate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json; charset=utf-8" },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) throw new Error(data.error || "Request failed");
-
-                lastPlaylist = data;
-
-                const tracksHtml = (data.tracks || []).map(t =>
-                    `<li>${escapeHtml(t.artist)} - ${escapeHtml(t.song)}</li>`
-                ).join("");
-
-                const tags = Array.isArray(data.vibe_tags) ? data.vibe_tags.join(", ") : "";
-
-                out.innerHTML = `
+            out.innerHTML = `
               <div class="card">
                 <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin için yapıldı.</b></div>
                 <h2 class="cardTitle">${escapeHtml(data.title || "Playlist")}</h2>
@@ -763,10 +815,11 @@
               </div>
             `;
 
-                const saveBtn = document.getElementById("saveBtn");
-                const copyBtn = document.getElementById("copyBtn");
-                const jsonBox = document.getElementById("jsonBox");
+            const saveBtn = document.getElementById("saveBtn");
+            const copyBtn = document.getElementById("copyBtn");
+            const jsonBox = document.getElementById("jsonBox");
 
+            if (saveBtn) {
                 saveBtn.onclick = async (e) => {
                     e.preventDefault?.();
 
@@ -795,12 +848,14 @@
                         alert(err?.message || String(err));
                     }
                 };
+            }
 
+            if (copyBtn) {
                 copyBtn.onclick = async () => {
                     try {
                         await navigator.clipboard.writeText(JSON.stringify(lastPlaylist, null, 2));
                         copyBtn.textContent = "Kopyalandı!";
-                        setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
+                        setTimeout(() => (copyBtn.textContent = "JSON kopyala"), 900);
                     } catch (e) {
                         const r = document.createRange();
                         r.selectNodeContents(jsonBox);
@@ -810,9 +865,68 @@
                         document.execCommand("copy");
                         sel.removeAllRanges();
                         copyBtn.textContent = "Kopyalandı!";
-                        setTimeout(() => copyBtn.textContent = "JSON kopyala", 900);
+                        setTimeout(() => (copyBtn.textContent = "JSON kopyala"), 900);
                     }
                 };
+            }
+
+            if (!__isPremium) {
+                out.insertAdjacentHTML(
+                    "beforeend",
+                    `
+                    <div class="mini-card" id="inlinePremiumUpsell">
+                        <h4>Premium Early Access</h4>
+                        <ul>
+                            <li>🎯 Niyetini anlar: mood + aktivite + tempo</li>
+                            <li>🌊 Baştan sona akış: enerji sıçraması yok</li>
+                            <li>🔁 1 tık alternatif: aynı vibe, farklı liste</li>
+                            <li>🚫 Tekrarsız: aynı artist üst üste gelmez</li>
+                        </ul>
+                        <button class="ghost-btn" onclick="window.location.href='/premium.html'">Premium’a geç (₺29.90)</button>
+                        <div class="hint" style="margin-top:6px;">Erken erişim fiyatı. İstediğin zaman iptal.</div>
+                    </div>
+                    `
+                );
+            }
+
+            updateRefreshUI();
+        }
+
+        // ---------- generate ----------
+        btn.onclick = async () => {
+            const requested = Number(countInput?.value || 20);
+            if (!__isPremium && requested > 40) {
+                showToast(`Free plan: ${requested} seçtin → 40 şarkıya düşürülecek. Premium ile 200'e çık.`);
+            }
+
+            if (btn.dataset.loading === "1") return;
+            btn.dataset.loading = "1";
+
+            refreshStatus.dataset.loading = "0";
+            refreshStatus.style.display = "none";
+
+            out.innerHTML = "";
+            out.className = "";
+            btn.disabled = true;
+            startLoading();
+
+            try {
+                lastPrompt = text.value;
+                const payload = {
+                    text: text.value,
+                    count: Number(countInput?.value || 20)
+                };
+
+                const resp = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(data.error || "Request failed");
+
+                renderPlaylist(data);
 
             } catch (e) {
                 out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
@@ -820,6 +934,55 @@
                 finishLoading();
                 btn.disabled = false;
                 btn.dataset.loading = "0";
+            }
+        };
+
+        refreshBtn.onclick = async () => {
+            if (!refreshBtn) return;
+            if (!lastPlaylist) {
+                showToast("Önce bir playlist üret.");
+                return;
+            }
+
+            if (!__isPremium) {
+                window.location.href = "/premium.html";
+                return;
+            }
+
+            if (refreshBtn.dataset.loading === "1") return;
+
+            refreshBtn.dataset.loading = "1";
+            refreshBtn.textContent = "Alternatif hazırlanıyor...";
+            refreshStatus.dataset.loading = "1";
+            refreshStatus.style.display = "block";
+            refreshStatus.textContent = "Alternatif hazırlanıyor…";
+
+            try {
+                const payload = {
+                    text: lastPrompt || text.value || "",
+                    count: Number(countInput?.value || (lastPlaylist?.tracks?.length || 20))
+                };
+
+                const resp = await fetch("/api/refresh", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(data.error || "Refresh başarısız");
+
+                renderPlaylist(data);
+                refreshStatus.dataset.loading = "0";
+                refreshStatus.style.display = "none";
+                refreshBtn.textContent = "🔁 Alternatif üret (Premium)";
+                showToast("Yeni alternatif hazırlandı.");
+            } catch (e) {
+                refreshStatus.textContent = "Hata: " + String(e?.message || e);
+                out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
+            } finally {
+                refreshBtn.dataset.loading = "0";
+                refreshStatus.dataset.loading = "0";
             }
         };
 
