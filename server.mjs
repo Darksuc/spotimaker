@@ -31,9 +31,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.enable("trust proxy");
 
 app.enable("trust proxy");
+// --- Canonical host redirect (cookie/state karışmasını bitirir) ---
+const CANONICAL_HOST = "spotimaker.onrenderer.com";
+
+app.use((req, res, next) => {
+    const host = String(req.headers.host || "");
+    // Eski domain'den gelenleri yeni domain'e bas
+    if (host && host !== CANONICAL_HOST) {
+        return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+    }
+    next();
+});
+
 
 app.use((req, res, next) => {
     if (process.env.NODE_ENV === "production" && !req.secure) {
@@ -242,7 +253,7 @@ async function getValidSpotifyToken(req, res) {
 async function requireSpotifyToken(req, res) {
     const token = await getValidSpotifyToken(req, res);
     if (!token) {
-        res.status(401).json({ error: "Spotify oturumu yok veya süresi doldu. /login" });
+        res.status(401).json({ error: "Spotify oturumu yok veya süresi doldu. /login?force=1" });
         return null;
     }
     return token;
@@ -380,7 +391,7 @@ app.get("/api/admin/db-check", async (req, res) => {
 });
 
 // Spotify OAuth start
-app.get("/login", (req, res) => {
+app.get("/login?force=1", (req, res) => {
     try {
         const state = crypto.randomBytes(12).toString("hex");
         setCookie(res, "spotify_state", state, 10 * 60 * 1000);
@@ -420,7 +431,7 @@ app.get("/login", (req, res) => {
         console.log("SPOTIFY_AUTHORIZE_URL", url);
         return res.redirect(url);
     } catch (e) {
-        console.error("/login crashed:", e);
+        console.error("/login?force=1 crashed:", e);
         return res.status(500).send("Spotify giriş başlatılırken hata: " + (e?.message || String(e)));
     }
 });
@@ -494,7 +505,7 @@ app.get("/callback", async (req, res) => {
 
         return res.redirect("/");
     } catch (err) {
-        console.error(err);
+        console.error("CALLBACK_FAILED", err);
         return res.status(500).send("Callback failed");
     }
 });
