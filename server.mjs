@@ -40,19 +40,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.enable("trust proxy");
-// server.mjs
-const CANONICAL_HOST = (process.env.CANONICAL_HOST || "").trim(); // örn: spotimaker.onrender.com
-
-app.use((req, res, next) => {
-    if (!CANONICAL_HOST) return next(); // boşsa redirect yapma
-    const host = String(req.headers.host || "");
-    if (host && host !== CANONICAL_HOST) {
-        return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
-    }
-    next();
-});
-
-
 app.use((req, res, next) => {
     if (process.env.NODE_ENV === "production" && !req.secure) {
         return res.redirect(301, `https://${req.get("host")}${req.originalUrl}`);
