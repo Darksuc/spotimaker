@@ -409,12 +409,26 @@ app.get("/api/admin/db-check", async (req, res) => {
         res.status(500).json({ ok: false, error: String(e?.message || e) });
     }
 });
+// ---- OAuth state store (server-side) ----
+const oauthStateStore = new Map(); // state -> expiresAt
+const OAUTH_STATE_TTL = 10 * 60 * 1000; // 10 min
+
+function putOauthState(state) {
+    oauthStateStore.set(state, Date.now() + OAUTH_STATE_TTL);
+}
+
+function consumeOauthState(state) {
+    const exp = oauthStateStore.get(state);
+    if (!exp) return false;
+    oauthStateStore.delete(state);
+    return exp > Date.now();
+}
 
 // ✅ Spotify OAuth start (DOĞRU ROUTE)
 app.get("/login", (req, res) => {
     try {
         const state = crypto.randomBytes(12).toString("hex");
-        setCookieState(res, "spotify_state", state, 10 * 60 * 1000);
+        putOauthState(state);
 
         const scope = [
             "user-read-private",
@@ -458,7 +472,6 @@ app.get("/callback", async (req, res) => {
     try {
         const code = String(req.query.code || "");
         const state = String(req.query.state || "");
-        const savedState = getCookie(req, "spotify_state");
 
         if (!code) return res.status(400).send("No code");
         if (!state || !savedState || state !== savedState) return res.status(400).send("Invalid state");
