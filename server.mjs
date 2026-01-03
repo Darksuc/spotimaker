@@ -385,7 +385,7 @@ app.get("/api/admin/db-check", async (req, res) => {
 });
 
 // Spotify OAuth start
-app.get("/login?force=1", (req, res) => {
+app.get("/login", (req, res) => {
     try {
         const state = crypto.randomBytes(12).toString("hex");
         setCookie(res, "spotify_state", state, 10 * 60 * 1000);
