@@ -411,12 +411,14 @@ app.get("/login", (req, res) => {
             show_dialog: force ? "true" : "false",
             response_type: "code",
             client_id: clientId,
-            scope: scope,
+            scope,
             redirect_uri: redirectUri,
             state
         });
 
-        return res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+        const url = `https://accounts.spotify.com/authorize?${params}`;
+        console.log("SPOTIFY_AUTHORIZE_URL", url);
+        return res.redirect(url);
     } catch (e) {
         console.error("/login crashed:", e);
         return res.status(500).send("Spotify giriş başlatılırken hata: " + (e?.message || String(e)));
@@ -460,37 +462,32 @@ app.get("/callback", async (req, res) => {
             return res.status(500).send("Token exchange failed");
         }
 
-        // ✅ eski token cookie'lerini her zaman temizle (karışmayı önler)
+        // eski cookie'leri temizle
         clearCookie(res, req, "spotify_access_token");
         clearCookie(res, req, "spotify_refresh_token");
         clearCookie(res, req, "spotify_expires_at");
-        clearCookie(res, req, "spotify_state"); // bunu burada silebilirsin
+        clearCookie(res, req, "spotify_state");
 
         const expiresIn = Number(data.expires_in || 3600);
         const expiresAt = Date.now() + expiresIn * 1000;
 
-        // ✅ yeni cookie'leri set et
         setCookie(res, "spotify_access_token", data.access_token, expiresIn * 1000);
 
         if (data.refresh_token) {
             setCookie(res, "spotify_refresh_token", data.refresh_token, 365 * 24 * 60 * 60 * 1000);
         } else {
-            // refresh gelmezse eskisi kalmasın
             clearCookie(res, req, "spotify_refresh_token");
         }
 
         setCookie(res, "spotify_expires_at", String(expiresAt), expiresIn * 1000);
 
-        // ✅ user upsert (cookie setten sonra bile olur, ama burada yapalım)
+        // user upsert
         try {
             const meRes = await fetch("https://api.spotify.com/v1/me", {
                 headers: { Authorization: `Bearer ${data.access_token}` }
             });
             const me = await meRes.json();
-            if (me?.id) {
-                await upsertUser({ spotify_id: me.id, display_name: me.display_name });
-                console.log("LOGIN_EVENT", { spotify_id: me.id, display_name: me.display_name || null, time: new Date().toISOString() });
-            }
+            if (me?.id) await upsertUser({ spotify_id: me.id, display_name: me.display_name });
         } catch (e) {
             console.error("upsertUser failed:", e);
         }
@@ -557,11 +554,15 @@ app.get("/api/spotify/status", async (req, res) => {
         if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
         if (r.status === 403) {
             // scope karıştıysa kullanıcıyı temiz bir force-login’e zorla
+            clearCookie(res, req, "spotify_access_token");
+            clearCookie(res, req, "spotify_refresh_token");
+            clearCookie(res, req, "spotify_expires_at");
 
             return res.json({
                 connected: false,
                 reason: "insufficient_scope",
                 login_url: "/login?force=1"
+
             });
         }
         if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
@@ -1089,13 +1090,17 @@ app.get("/api/admin/codes/create", (req, res) => {
     res.status(405).send("Use POST /api/admin/codes/create (admin token required).");
 });
 
-// Static LAST
-app.use(express.static(path.join(__dirname, "public")));
+        // Static LAST
+        app.use(express.static(path.join(__dirname, "public")));
 
-// Boot
-const port = process.env.PORT || 8787;
-await initDb();
+        const port = process.env.PORT || 8787;
 
-app.listen(port, () => {
-    console.log(`Spotimaker running on http://localhost:${port}`);
-});
+        (async () => {
+            await initDb();
+            app.listen(port, () => {
+                console.log(`Spotimaker running on http://localhost:${port}`);
+            });
+        })().catch((e) => {
+            console.error("BOOT ERROR:", e)
+            process.exit(1);
+        });
