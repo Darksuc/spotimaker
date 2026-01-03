@@ -51,12 +51,12 @@ app.use((req, res, next) => {
 
     // Yanlış host geldiyse: HER ZAMAN doğru host'a dön
     if (host && host !== CANONICAL_HOST) {
-        return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+        return res.redirect(302, `https://${CANONICAL_HOST}${req.originalUrl}`);
     }
 
     // HTTP geldiyse HTTPS'e bas (host sabit!)
     if (process.env.NODE_ENV === "production" && !isHttps) {
-        return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+        return res.redirect(302, `https://${CANONICAL_HOST}${req.originalUrl}`);
     }
 
     next();
