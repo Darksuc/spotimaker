@@ -1,26 +1,27 @@
-﻿// db.mjs (Postgres)
-// Bu dosya: upsertUser, markPlaylistCreated, markPlaylistSaved, getUsers, getStats,
-// isPremium, countSavedToday, createRedeemCode, redeemCode fonksiyonlarını export eder.
-
-import pg from "pg";
+﻿import pg from "pg";
 const { Pool } = pg;
 
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-    throw new Error("DATABASE_URL env missing");
-}
+const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 
-export const pool = new Pool({
-    connectionString: DATABASE_URL,
-    ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
-});
+// ✅ DB opsiyonel: yoksa server yine ayakta kalsın
+export const dbEnabled = Boolean(DATABASE_URL);
+
+// ✅ pool null olabilir (DB yoksa)
+export const pool = dbEnabled
+    ? new Pool({
+        connectionString: DATABASE_URL,
+        ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
+    })
+    : null;
 
 function now() {
     return Date.now();
 }
 
 // --- DB init (shell yoksa bile tablo kurulsun) ---
+
 export async function initDb() {
+    if (!dbEnabled || !pool) throw new Error("DB_NOT_CONFIGURED");
     const sql = `
   create table if not exists users (
     spotify_id text primary key,
@@ -57,15 +58,16 @@ export async function initDb() {
     await pool.query(sql);
 }
 
-// --- Lazy init: server çağırmasa bile DB hazır olsun ---
+
+// --- küçük yardımcı: user yoksa event insert FK patlatmasın ---
 let _initPromise = null;
 async function ensureDbReady() {
+    if (!dbEnabled || !pool) throw new Error("DB_NOT_CONFIGURED");
     if (!_initPromise) _initPromise = initDb();
     await _initPromise;
 }
-
-// --- küçük yardımcı: user yoksa event insert FK patlatmasın ---
 async function ensureUserExists(spotify_id) {
+    await ensureDbReady();
     const ts = now();
     await pool.query(
         `insert into users (spotify_id, display_name, first_seen, last_seen, logins)

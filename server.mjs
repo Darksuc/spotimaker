@@ -409,6 +409,10 @@ app.get("/", (req, res) => {
 // Health/db sanity (admin)
 app.get("/api/admin/db-check", async (req, res) => {
     try {
+        if (!pool) {
+            return res.json({ ok: false, error: "DB_NOT_CONFIGURED" });
+        }
+
         if (!requireAdmin(req, res)) return;
         await initDb();
         const stats = await getStats();
@@ -603,10 +607,14 @@ app.get("/api/spotify/status", async (req, res) => {
         if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
 
         const me = await r.json().catch(() => ({}));
+
+        let premium = false;
+        try { premium = await isPremium(me.id); } catch (_) { premium = false; }
+
         return res.json({
             connected: true,
             user: { id: me.id, name: me.display_name },
-            premium: await isPremium(me.id),
+            premium,
         });
     } catch (e) {
         return res.json({ connected: false, reason: "exception", message: String(e?.message || e) });
@@ -638,8 +646,8 @@ app.get("/api/me", async (req, res) => {
 
         if (!r.ok) return res.status(200).json({ ok: false, status: r.status, spotify_error: data });
 
-        const premium = await isPremium(data.id);
-
+        let premium = false;
+        try { premium = await isPremium(String(data.id || "")); } catch (_) { premium = false; }
         return res.status(200).json({
             ok: true,
             me: { id: data.id, display_name: data.display_name },
@@ -699,11 +707,20 @@ app.get("/debug/spotify", async (req, res) => {
         });
         const tracks = await tracksRes.json().catch(() => ({}));
 
+        let premium = false;
+        try {
+            premium = await isPremium(String(me.id || ""));
+        } catch (_) {
+            premium = false;
+        }
+
         return res.json({
             ok: true,
             me: { id: me.id, display_name: me.display_name },
-            premium: await isPremium(String(me.id || "")),
-            sampleTopTracks: (tracks?.items || []).slice(0, 3).map((t) => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()),
+            premium,
+            sampleTopTracks: (tracks?.items || [])
+                .slice(0, 3)
+                .map((t) => `${t.name} - ${t.artists?.[0]?.name || ""}`.trim()),
         });
     } catch (e) {
         console.error(e);
@@ -717,6 +734,10 @@ app.get("/debug/spotify", async (req, res) => {
 app.post("/api/generate", async (req, res) => {
     const userText = String(req.body?.text ?? "").trim();
     if (!userText) return res.status(400).json({ error: "Missing text" });
+
+    if (userText.length > 2000) {
+        return res.status(400).json({ error: "Text too long (max 2000 chars)" });
+    }
 
     try {
         const spotifyToken = await getValidSpotifyToken(req, res);
@@ -837,7 +858,14 @@ ${spotifyProfileText}
         });
 
         const jsonText = response.output_text;
-        const data = JSON.parse(jsonText);
+
+        let data;
+        try {
+            data = JSON.parse(jsonText);
+        } catch (err) {
+            console.error("AI invalid JSON:", jsonText?.slice?.(0, 300));
+            return res.status(400).json({ error: "AI returned invalid JSON" });
+        }
 
         data.energy_curve = buildEnergyCurve(data.tracks?.length || requestedCount);
 
@@ -870,12 +898,24 @@ async function saveSpotifyPlaylist(req, res) {
         if (!meInfo.ok) return res.status(401).json({ error: "Spotify /me failed" });
         const me = meInfo.me;
 
-        const premium = await isPremium(String(me.id || ""));
+        let premium = false;
+        try {
+            premium = await isPremium(String(me.id || ""));
+        } catch (_) {
+            premium = false; // DB yoksa premium false kabul et
+        }
 
         try {
             if (!premium) {
                 const used = await countSavedToday(String(me.id || ""));
-                if (used >= 1) console.log("FREE_SAVE_LIMIT_WARNING", { me: me.id, used });
+                if (used >= 1) {
+                    return res.status(403).json({
+                        error: "Free save limit reached (1/day). Upgrade required.",
+                        upgrade_required: true,
+                        limit: { saves_per_day: 1 },
+                        used,
+                    });
+                }
             }
         } catch (e) {
             console.error("countSavedToday failed:", e);
@@ -939,8 +979,11 @@ app.post("/spotify/save", saveSpotifyPlaylist);
 app.post("/api/spotify/save", saveSpotifyPlaylist);
 
 // DB tables sanity
+
 app.get("/api/debug/db", async (req, res) => {
     try {
+        if (!pool) return res.status(200).json({ ok: false, error: "DB_NOT_CONFIGURED" });
+
         const r = await pool.query(`select to_regclass('public.users') as users,
                                        to_regclass('public.events') as events,
                                        to_regclass('public.redeem_codes') as redeem_codes`);
@@ -1103,7 +1146,14 @@ app.get("/api/admin/codes/create", (req, res) => res.status(405).send("Use POST 
 const port = process.env.PORT || 8787;
 
 (async () => {
-    await initDb();
+    try {
+        // ✅ DB varsa init et, yoksa devam et
+        await initDb();
+        console.log("DB ready ✅");
+    } catch (e) {
+        console.warn("DB init skipped ⚠️", String(e?.message || e));
+    }
+
     app.listen(port, () => {
         console.log(`Spotimaker running on http://localhost:${port}`);
     });
