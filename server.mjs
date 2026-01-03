@@ -42,14 +42,23 @@ app.use(express.urlencoded({ extended: true }));
 app.enable("trust proxy");
 
 // HTTPS redirect (Render'da x-forwarded-proto ile doğru çalışır)
+const CANONICAL_HOST = (process.env.PUBLIC_HOST || "spotimaker.onrender.com").trim();
+
 app.use((req, res, next) => {
-    if (process.env.NODE_ENV === "production") {
-        const xfProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
-        // Render'da genelde xfProto=https gelir. Eğer http geldiyse https'e bas.
-        if (xfProto === "http") {
-            return res.redirect(301, `https://${req.get("host")}${req.originalUrl}`);
-        }
+    const host = String(req.headers.host || "");
+    const xfProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
+    const isHttps = req.secure || xfProto === "https";
+
+    // Yanlış host geldiyse: HER ZAMAN doğru host'a dön
+    if (host && host !== CANONICAL_HOST) {
+        return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
     }
+
+    // HTTP geldiyse HTTPS'e bas (host sabit!)
+    if (process.env.NODE_ENV === "production" && !isHttps) {
+        return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+    }
+
     next();
 });
 
