@@ -70,6 +70,21 @@ function getCookie(req, name) {
     if (!found) return "";
     return decodeURIComponent(found.split("=").slice(1).join("="));
 }
+function setCookieState(res, name, value, maxAgeMs) {
+    const cookie = [
+        `${name}=${encodeURIComponent(value)}`,
+        `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
+        "Path=/",
+        "HttpOnly",
+        "SameSite=None",
+        "Secure"
+    ].join("; ");
+
+    const prev = res.getHeader("Set-Cookie");
+    if (!prev) res.setHeader("Set-Cookie", cookie);
+    else if (Array.isArray(prev)) res.setHeader("Set-Cookie", [...prev, cookie]);
+    else res.setHeader("Set-Cookie", [prev, cookie]);
+}
 
 function setCookie(res, name, value, maxAgeMs) {
     const isProd = process.env.NODE_ENV === "production";
@@ -390,7 +405,7 @@ app.get("/api/admin/db-check", async (req, res) => {
 app.get("/login", (req, res) => {
     try {
         const state = crypto.randomBytes(12).toString("hex");
-        setCookie(res, "spotify_state", state, 10 * 60 * 1000);
+        setCookieState(res, "spotify_state", state, 10 * 60 * 1000);
 
         const scope = [
             "user-read-private",
