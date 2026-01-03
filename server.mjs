@@ -474,7 +474,7 @@ app.get("/callback", async (req, res) => {
         const state = String(req.query.state || "");
 
         if (!code) return res.status(400).send("No code");
-        if (!state || !savedState || state !== savedState) return res.status(400).send("Invalid state");
+        if (!state || !consumeOauthState(state)) return res.status(400).send("Invalid state");
 
         const redirectUri = String(process.env.SPOTIFY_REDIRECT_URI || "").trim();
 
