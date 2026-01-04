@@ -116,34 +116,43 @@
             to { opacity: 1; }
         }
 
-        .hero-card {
+        .pricing-grid {
             display: grid;
-            grid-template-columns: 1.2fr 1fr;
-            gap: 18px;
-            align-items: start;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 10px;
         }
 
-        .hero-card h1 {
-            margin: 0;
+        .plan-card h2 {
+            margin: 4px 0 0;
+            letter-spacing: -0.2px;
         }
 
-        .cta-row {
+        .plan-card p { margin: 8px 0; }
+
+        .plan-meta {
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 12px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
 
-        .pill {
+        .badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 6px 10px;
             border-radius: 999px;
             border: 1px solid var(--line);
-            background: rgba(255,255,255,.08);
-            font-size: 13px;
+            background: rgba(34,197,94,.12);
+            color: #c3f8d8;
+            font-size: 12px;
+            font-weight: 700;
         }
+
+        .plan-card ul { margin-top: 10px; }
+
+        .section-title { margin: 0 0 6px; letter-spacing: -0.2px; }
 
         @keyframes fadeUp {
             from { opacity: 0; transform: translateY(10px); }
@@ -157,6 +166,10 @@
 
         @media(max-width:780px) {
             body { margin: 32px auto; }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media(max-width:640px) {
@@ -181,28 +194,8 @@
                 width: 100%;
             }
 
-            .hero-card {
+            .pricing-grid {
                 grid-template-columns: 1fr;
-            }
-        }
-
-        @media(max-width:640px) {
-            body {
-                margin: 28px auto;
-            }
-
-            .top {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .btn {
-                width: 100%;
-                text-align: center;
-            }
-
-            .cta-row {
-                flex-direction: column;
             }
 
             .grid {
@@ -213,7 +206,7 @@
 </head>
 <body>
     <div class="top">
-        <a class="btn" href="/">← Ana sayfaya dön</a>
+        <a class="text-link" href="/">← Ana sayfaya dön</a>
     </div>
 
     <div id="statusMsg" class="muted" style="margin:10px 0 16px"></div>
@@ -231,20 +224,46 @@
         </div>
     </div>
 
-    <div class="card section" style="border-color:rgba(34,197,94,.45)">
-        <div class="pill">Niyet odaklı kürasyon</div>
-        <h1 style="font-size:30px; letter-spacing:-0.3px; margin:0">Premium Early Access</h1>
-        <p class="muted" style="max-width:720px; margin:10px 0 0">Mood + aktivite + tempo niyetini anlayan, akışı bozmadan ilerleyen ve aynı vibe’da alternatif üreten playlistler. Erken erişimdeyiz; gerçek kullanım verisiyle geliştirmeye devam ediyoruz.</p>
-        <div class="price">₺29.90 <span style="font-size:15px; font-weight:700">(30 gün tek sefer)</span></div>
-        <ul>
-            <li>“Sakin ama ritmik”, “ders odak”, “gece sürüşü” gibi his + tempo odaklı anlayış</li>
-            <li>Doğal enerji akışı: intro → yükseliş → peak → sakinleşme</li>
-            <li>Tek tık Refresh ile aynı niyetin yeni yorumu</li>
-            <li>Keşif ve tanıdık şarkıları dengeler</li>
-        </ul>
-        <div class="cta-row">
-            <a class="btn white" href="#" onclick="startCheckout(this); return false;">Premium’a geç (₺29.90)</a>
-            <a class="text-link" href="/">Ana sayfaya dön</a>
+    <div class="section">
+        <div class="pill">Planını seç</div>
+        <h1 class="section-title">Ücretsiz vs Premium</h1>
+        <div class="pricing-grid">
+            <div class="card plan-card">
+                <div class="plan-meta">
+                    <div>
+                        <h2>Ücretsiz</h2>
+                        <p class="muted" style="margin:2px 0 0">Temel akış ve keşif</p>
+                    </div>
+                    <div class="price" style="margin:0">₺0</div>
+                </div>
+                <ul>
+                    <li>Güncel mood’lara göre listeler</li>
+                    <li>Limitli refresh hakları</li>
+                    <li>İlham veren kürasyon tadımları</li>
+                </ul>
+                <div class="cta-row" style="margin-top:18px; align-items:flex-end;">
+                    <a class="text-link" href="/">Ücretsiz devam et</a>
+                </div>
+            </div>
+            <div class="card plan-card" style="border-color: rgba(34,197,94,.45); box-shadow: 0 12px 36px rgba(34,197,94,.12);">
+                <div class="plan-meta">
+                    <div>
+                        <div class="badge">En iyi deneyim</div>
+                        <h2>Premium</h2>
+                        <p class="muted" style="margin:2px 0 0">Akışı bozmadan ilerleyen niyet odaklı listeler</p>
+                    </div>
+                    <div class="price" style="margin:0">₺29.90 <span style="font-size:15px; font-weight:700">(30 gün)</span></div>
+                </div>
+                <ul>
+                    <li>His + tempo odaklı kürasyon: “sakin ama ritmik”, “ders odak”, “gece sürüşü”</li>
+                    <li>Doğal enerji akışı: intro → yükseliş → peak → sakinleşme</li>
+                    <li>Tek tık Refresh ile aynı vibe’da yeni liste</li>
+                    <li>Keşif ve tanıdık şarkılar arasında denge</li>
+                </ul>
+                <div class="cta-row" style="margin-top:18px; align-items:flex-end;">
+                    <a class="btn white" href="#" onclick="startCheckout(this); return false;">Premium’a geç ₺29.90</a>
+                </div>
+            </div>
         </div>
     </div>
 
