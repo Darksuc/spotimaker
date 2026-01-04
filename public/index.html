@@ -96,6 +96,28 @@
             align-items: center;
         }
 
+        .beta-note {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin: 6px 0 4px;
+            color: rgba(255,255,255,.82);
+        }
+
+        .beta-pill {
+            background: rgba(255,255,255,.06);
+            border-color: rgba(255,255,255,.14);
+            color: rgba(255,255,255,.88);
+            padding: 6px 12px;
+        }
+
+        .beta-subtext {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
         .spotify-badge {
             display: inline-flex;
             align-items: center;
@@ -494,6 +516,16 @@
             color: rgba(255,255,255,.82);
         }
 
+        .allowlist-card {
+            border-style: dashed;
+            background: rgba(255,255,255,.04);
+            color: rgba(255,255,255,.88);
+        }
+
+        .allowlist-card .beta-subtext {
+            margin-top: 4px;
+        }
+
         .compare-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -662,11 +694,21 @@
         <main class="main-card">
             <div class="hero">
                 <div>
+                    <div class="beta-note">
+                        <span class="pill beta-pill">Sınırlı Beta</span>
+                        <div class="beta-subtext">Spotimaker şu anda sınırlı bir beta sürecindedir. Erişim yalnızca onaylı hesaplar içindir.</div>
+                    </div>
                     <div class="pill" style="margin:0 0 10px 0; padding:6px 14px; font-size:12px;">Mood + vibe odaklı liste</div>
                     <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
                     <p class="p">Mood + ortam + his yeter. İstersen playlisti Spotify hesabına tek tıkla eklersin.</p>
                     <div class="hint" style="opacity:.85;">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
                 </div>
+            </div>
+
+            <div id="allowlistNotice" class="mini-card allowlist-card" style="display:none; margin-top:4px;">
+                <div style="font-weight:800;">Bu Spotify hesabı için beta erişimi bulunmuyor.</div>
+                <div class="beta-subtext">Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıcılar erişebilir.</div>
+                <div class="beta-subtext">Beta erişimi için lütfen bizimle iletişime geçin.</div>
             </div>
 
             <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
@@ -860,6 +902,7 @@ Spotimaker neyi farklı yapar?
         const aboutOpen = document.getElementById("aboutOpen");
         const aboutClose = document.getElementById("aboutClose");
         const aboutCloseCta = document.getElementById("aboutCloseCta");
+        const allowlistNotice = document.getElementById("allowlistNotice");
 
         // ---------- premium/free UI ----------
         function applyPlanUI() {
@@ -881,6 +924,34 @@ Spotimaker neyi farklı yapar?
 
             updateCountHint();
             updateRefreshUI();
+        }
+
+        function showAllowlistNotice(show) {
+            if (!allowlistNotice) return;
+            allowlistNotice.style.display = show ? "block" : "none";
+        }
+
+        function maybeShowAllowlistNoticeFromError(err) {
+            const msg = String(err?.message || err || "");
+            const status = Number(err?.status || err?.code || 0);
+            const lower = msg.toLowerCase();
+            const keywords = [
+                lower.includes("allowlist"),
+                lower.includes("whitelist"),
+                lower.includes("developer mode"),
+                lower.includes("not approved"),
+                lower.includes("beta access"),
+                lower.includes("beta erişimi"),
+            ];
+            const statusAllowlist = status === 403 && (lower.includes("beta") || lower.includes("developer") || lower.includes("allow"));
+            const isAllowlist = keywords.some(Boolean) || statusAllowlist;
+
+            if (isAllowlist) {
+                showAllowlistNotice(true);
+                return true;
+            }
+
+            return false;
         }
 
         function updateCountHint() {
@@ -947,6 +1018,9 @@ Spotimaker neyi farklı yapar?
                 const r = await fetch("/api/spotify/status");
                 const s = await r.json();
 
+                const allowlistBlocked = s?.reason === "spotify_error" && Number(s?.status || 0) === 403;
+                showAllowlistNotice(Boolean(allowlistBlocked));
+
                 if (!spotifyStatus || !spotifyLink) return;
 
                 if (s.connected) {
@@ -982,6 +1056,7 @@ Spotimaker neyi farklı yapar?
             } catch (e) {
                 console.warn("refreshSpotifyStatus hata:", e);
                 if (logoutLink) logoutLink.style.display = "none";
+                showAllowlistNotice(false);
             }
         }
 
@@ -1065,7 +1140,12 @@ Spotimaker neyi farklı yapar?
             });
 
             const j = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(j.error || "Spotify kaydetme başarısız");
+            if (!resp.ok) {
+                const err = new Error(j.error || "Spotify kaydetme başarısız");
+                err.status = resp.status;
+                err.details = j;
+                throw err;
+            }
             return j;
         }
 
@@ -1133,7 +1213,9 @@ Spotimaker neyi farklı yapar?
                         console.error(err);
                         saveBtn.disabled = false;
                         saveBtn.textContent = "Spotify'ya ekle";
-                        alert(err?.message || String(err));
+                        if (!maybeShowAllowlistNoticeFromError(err)) {
+                            alert(err?.message || String(err));
+                        }
                     }
                 };
             }
@@ -1212,12 +1294,21 @@ Spotimaker neyi farklı yapar?
                 });
 
                 const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) throw new Error(data.error || "Request failed");
+                if (!resp.ok) {
+                    const err = new Error(data.error || "Request failed");
+                    err.status = resp.status;
+                    err.details = data;
+                    throw err;
+                }
 
                 renderPlaylist(data);
 
             } catch (e) {
-                out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
+                if (maybeShowAllowlistNoticeFromError(e)) {
+                    out.innerHTML = "";
+                } else {
+                    out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
+                }
             } finally {
                 finishLoading();
                 btn.disabled = false;
@@ -1258,7 +1349,12 @@ Spotimaker neyi farklı yapar?
                 });
 
                 const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) throw new Error(data.error || "Refresh başarısız");
+                if (!resp.ok) {
+                    const err = new Error(data.error || "Refresh başarısız");
+                    err.status = resp.status;
+                    err.details = data;
+                    throw err;
+                }
 
                 renderPlaylist(data);
                 refreshStatus.dataset.loading = "0";
@@ -1266,8 +1362,13 @@ Spotimaker neyi farklı yapar?
                 refreshBtn.textContent = "🔁 Alternatif üret (Premium)";
                 showToast("Yeni alternatif hazırlandı.");
             } catch (e) {
-                refreshStatus.textContent = "Hata: " + String(e?.message || e);
-                out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
+                if (maybeShowAllowlistNoticeFromError(e)) {
+                    refreshStatus.textContent = "";
+                    out.innerHTML = "";
+                } else {
+                    refreshStatus.textContent = "Hata: " + String(e?.message || e);
+                    out.innerHTML = `<div class="card error"><b>Hata:</b><pre>${escapeHtml(String(e))}</pre></div>`;
+                }
             } finally {
                 refreshBtn.dataset.loading = "0";
                 refreshStatus.dataset.loading = "0";
