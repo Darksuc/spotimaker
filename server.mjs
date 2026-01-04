@@ -1046,6 +1046,27 @@ app.get("/api/spotify/status", async (req, res) => {
     }
 });
 
+// Spotify verify (post-login allowlist check)
+app.get("/api/spotify/verify", async (req, res) => {
+    try {
+        const token = await getValidSpotifyToken(req, res);
+        if (!token) return res.status(401).json({ code: "AUTH_REQUIRED" });
+
+        const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
+
+        if (meRes.status === 401) return res.status(401).json({ code: "AUTH_REQUIRED" });
+        if (meRes.betaAccessRequired || meRes.status === 403) return res.status(403).json(BETA_ACCESS_RESPONSE);
+
+        const me = meRes.json || {};
+        if (!meRes.ok || !me.id) return res.status(meRes.status || 500).json({ ok: false, error: "SPOTIFY_ERROR" });
+
+        return res.json({ ok: true, profile: { id: String(me.id || ""), display_name: String(me.display_name || "") } });
+    } catch (e) {
+        console.error("spotify verify failed", e);
+        return res.status(500).json({ ok: false, error: "VERIFY_FAILED" });
+    }
+});
+
 // /api/me
 app.get("/api/me", async (req, res) => {
     try {
