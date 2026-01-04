@@ -344,11 +344,21 @@
         .beta-inline-form {
             display: none;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
             padding: 12px;
             border: 1px solid var(--line);
             border-radius: 14px;
             background: rgba(255,255,255,.04);
+        }
+
+        .beta-inline-form:not(.hidden) {
+            display: flex;
+        }
+
+        .beta-inline-helper {
+            margin-bottom: -4px;
+            font-size: 13px;
+            color: var(--muted);
         }
 
         .beta-inline-form input,
@@ -773,9 +783,9 @@ Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıc
                     <button id="betaInlineOpen" data-beta-request-btn="1" class="btn" type="button" style="padding:10px 14px; font-size:14px;">Beta erişimi iste</button>
                 </div>
                 <form id="betaInlineForm" class="beta-inline-form hidden" novalidate>
-                    <input id="betaInlineEmail" name="email" type="email" placeholder="ornek@spotify.com" required />
-                    <textarea id="betaInlineNote" name="note" maxlength="500" placeholder="Opsiyonel not..."></textarea>
-                    <div class="hint" style="margin-top:2px;">Spotify hesabındaki e-posta adresini girmen gerekir.</div>
+                    <div class="beta-inline-helper">Lütfen Spotify hesabınızda kayıtlı olan e-posta adresini girin.</div>
+                    <input id="betaInlineEmail" name="email" type="email" placeholder="Spotify e-posta adresin" required />
+                    <textarea id="betaInlineNote" name="note" maxlength="500" placeholder="Not (opsiyonel)"></textarea>
                     <button id="betaInlineSubmit" class="ghost-btn" type="submit" style="font-size:15px;">Talep gönder</button>
                     <div id="betaInlineStatus" class="hint" style="margin:4px 0 0;" aria-live="polite"></div>
                 </form>
