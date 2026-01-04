@@ -61,6 +61,14 @@ export async function initDb() {
     message text not null,
     created_at bigint not null
   );
+
+  create table if not exists beta_requests (
+    id bigserial primary key,
+    email text not null,
+    note text not null default '',
+    status text not null default 'pending',
+    created_at bigint not null
+  );
   `;
     await pool.query(sql);
 }
@@ -282,6 +290,44 @@ export async function getFeedbackMessages(limit = 200) {
     );
 
     return r.rows;
+}
+
+// --- BETA ACCESS REQUESTS ---
+export async function createBetaRequest({ email, note = "" }) {
+    await ensureDbReady();
+
+    const ts = now();
+    const r = await pool.query(
+        `insert into beta_requests (email, note, status, created_at) values ($1,$2,'pending',$3) returning *`,
+        [String(email || ""), String(note || ""), ts]
+    );
+
+    return r.rows[0];
+}
+
+export async function listBetaRequests(limit = 200, status = "pending") {
+    await ensureDbReady();
+    const lim = Math.max(1, Math.min(500, Number(limit) || 200));
+
+    const r = await pool.query(
+        `select id, email, note, status, created_at
+         from beta_requests
+         ${status ? "where status=$2" : ""}
+         order by created_at desc
+         limit $1`,
+        status ? [lim, String(status)] : [lim]
+    );
+
+    return r.rows;
+}
+
+export async function updateBetaRequestStatus(id, status = "approved") {
+    await ensureDbReady();
+    const r = await pool.query(
+        `update beta_requests set status=$2 where id=$1`,
+        [Number(id), String(status || "approved")]
+    );
+    return r.rowCount > 0;
 }
 
 // MVP: son 3 günü çekip JS'te sayıyoruz (küçük kullanımda yeterli, stabil)
