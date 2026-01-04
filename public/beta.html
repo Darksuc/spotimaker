@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sınırlı Beta - Spotimaker</title>
+    <style>
+        :root {
+            --bg: #0b0b0f;
+            --card: #12121a;
+            --muted: rgba(255,255,255,.72);
+            --text: #fff;
+            --line: rgba(255,255,255,.12);
+            --accent: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+            background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.18), transparent 60%), radial-gradient(1000px 700px at 80% 10%, rgba(59,130,246,.14), transparent 60%), var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 16px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 620px;
+            padding: 24px;
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            background: rgba(18,18,26,.9);
+            box-shadow: 0 20px 60px rgba(0,0,0,.32);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            background: linear-gradient(135deg, rgba(34,197,94,.24), rgba(59,130,246,.18));
+            color: #fff;
+        }
+
+        h1 {
+            margin: 10px 0 8px;
+            font-size: 28px;
+        }
+
+        p { margin: 0; line-height: 1.6; color: var(--muted); }
+
+        form {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.05);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        textarea { min-height: 120px; resize: vertical; }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: rgba(34,197,94,.5);
+            box-shadow: 0 0 0 4px rgba(34,197,94,.12);
+        }
+
+        .btn {
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: none;
+            font-weight: 800;
+            background: linear-gradient(135deg, rgba(163,230,53,0.9), rgba(74,222,128,0.95), rgba(34,197,94,0.95));
+            color: #0c1a0f;
+            cursor: pointer;
+            box-shadow: 0 18px 40px rgba(34,197,94,0.3);
+            transition: transform .16s ease, box-shadow .18s ease, opacity .18s ease;
+        }
+
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 18px 44px rgba(34,197,94,0.32); }
+        .btn:disabled { opacity: .7; cursor: not-allowed; }
+
+        .status { font-size: 14px; color: var(--muted); min-height: 20px; }
+        .success { color: #22c55e; }
+        .error { color: var(--danger); }
+
+        .footer-links {
+            margin-top: 14px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .footer-links a { color: #fff; text-decoration: none; }
+        .footer-links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="brand">
+            <div class="logo" aria-hidden="true">🎧</div>
+            <div>
+                <div style="font-weight:900; font-size:18px;">Spotimaker</div>
+                <div style="color:var(--muted); font-size:13px;">Sınırlı Beta</div>
+            </div>
+        </div>
+
+        <h1>Sınırlı Beta</h1>
+        <p>Spotimaker şu anda davet usulü (invite-only) sınırlı beta sürecindedir.
+Beta erişimi için aşağıya Spotify hesabında kayıtlı e-posta adresini bırakabilirsin.</p>
+
+        <form id="betaForm" novalidate>
+            <input id="email" type="email" name="email" placeholder="Spotify e-posta adresin" required />
+            <textarea id="note" name="note" maxlength="500" placeholder="Not (opsiyonel)"></textarea>
+            <button id="submitBtn" class="btn" type="submit">Talep gönder</button>
+            <div id="status" class="status" aria-live="polite"></div>
+        </form>
+
+        <div class="footer-links">
+            <a href="/">Ana sayfa</a>
+            <span>Sınırlı beta: erişim yalnızca onaylı hesaplar içindir.</span>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("betaForm");
+        const emailInput = document.getElementById("email");
+        const noteInput = document.getElementById("note");
+        const statusEl = document.getElementById("status");
+        const submitBtn = document.getElementById("submitBtn");
+
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        form?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!emailInput || !noteInput || !statusEl || !submitBtn) return;
+
+            const email = String(emailInput.value || "").trim();
+            const note = String(noteInput.value || "").trim();
+
+            statusEl.textContent = "";
+            statusEl.className = "status";
+
+            if (!email || !emailRe.test(email)) {
+                statusEl.textContent = "Geçerli bir e-posta gir.";
+                statusEl.classList.add("error");
+                return;
+            }
+
+            if (note.length > 500) {
+                statusEl.textContent = "Not 500 karakteri aşmamalı.";
+                statusEl.classList.add("error");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Gönderiliyor...";
+
+            try {
+                const resp = await fetch("/api/beta/request", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, note })
+                });
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.ok) throw new Error(data.error || "Talep gönderilemedi. Lütfen daha sonra tekrar dene.");
+
+                statusEl.textContent = "Talebin alındı. Erişim onaylandığında bu e-posta ile giriş yapabilirsin.";
+                statusEl.classList.add("success");
+                emailInput.value = "";
+                noteInput.value = "";
+            } catch (err) {
+                statusEl.textContent = "Talep gönderilemedi. Lütfen daha sonra tekrar dene.";
+                statusEl.classList.add("error");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Talep gönder";
+            }
+        });
+    </script>
+</body>
+</html>
