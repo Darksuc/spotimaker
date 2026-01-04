@@ -18,6 +18,7 @@ import {
     getUsers,
     getStats,
     isPremium,
+    grantPremium,
     countSavedToday,
     createRedeemCode,
     redeemCode,
@@ -34,8 +35,17 @@ const __dirname = path.dirname(__filename);
 
 // --- express ---
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// JSON parser (webhook hariç)
+const jsonParser = express.json();
+const urlEncodedParser = express.urlencoded({ extended: true });
+app.use((req, res, next) => {
+    if (req.originalUrl.startsWith("/api/billing/webhook")) return next();
+    jsonParser(req, res, (err) => {
+        if (err) return next(err);
+        urlEncodedParser(req, res, next);
+    });
+});
 
 // Render reverse proxy
 app.enable("trust proxy");
@@ -79,6 +89,9 @@ const SPOTIFY_PROFILE_TTL = 15 * 60 * 1000; // 15 min
 // ---- premium intent cache (per user, ephemeral) ----
 const intentPlanCache = new Map(); // key: spotify_user_id -> { plan, text, count, ts }
 const INTENT_PLAN_TTL = 30 * 60 * 1000; // 30 min
+const STRIPE_SECRET_KEY = String(process.env.STRIPE_SECRET_KEY || "").trim();
+const STRIPE_PRICE_ID = String(process.env.STRIPE_PRICE_ID || "").trim();
+const STRIPE_WEBHOOK_SECRET = String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
 
 async function getSpotifyProfileText(req, res, spotifyToken) {
     if (!spotifyToken) return "";
@@ -203,6 +216,66 @@ function escapeHtml(s) {
 ------------------------------ */
 function normalizeStr(s) {
     return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+function getBaseUrl(req) {
+    const envBase = String(process.env.PUBLIC_BASE_URL || "").trim();
+    if (envBase) return envBase.replace(/\/+$/, "");
+
+    const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0];
+    const host = req.headers.host || "localhost";
+    return `${proto}://${host}`;
+}
+
+function stripeConfigured() {
+    return Boolean(STRIPE_SECRET_KEY && STRIPE_PRICE_ID);
+}
+
+async function createStripeCheckoutSession({ spotify_id, success_url, cancel_url }) {
+    const body = new URLSearchParams();
+    body.append("mode", "payment");
+    body.append("line_items[0][price]", STRIPE_PRICE_ID);
+    body.append("line_items[0][quantity]", "1");
+    body.append("client_reference_id", spotify_id);
+    body.append("success_url", success_url);
+    body.append("cancel_url", cancel_url);
+    body.append("metadata[spotify_id]", spotify_id);
+
+    const r = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+    });
+
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+        const errMsg = data?.error?.message || data?.error?.type || "Stripe session failed";
+        throw new Error(errMsg);
+    }
+    return data;
+}
+
+function verifyStripeSignature(rawBody, signatureHeader) {
+    if (!signatureHeader || !STRIPE_WEBHOOK_SECRET) return false;
+    const parts = String(signatureHeader)
+        .split(",")
+        .map((s) => s.split("="))
+        .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+
+    const timestamp = parts.t;
+    const v1 = parts.v1;
+    if (!timestamp || !v1) return false;
+
+    const signedPayload = `${timestamp}.${rawBody}`;
+    const expected = crypto.createHmac("sha256", STRIPE_WEBHOOK_SECRET).update(signedPayload).digest("hex");
+
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(v1, "hex");
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
 }
 
 function buildEnergyCurve(n) {
@@ -602,6 +675,75 @@ app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
+/* -----------------------------
+   Billing (Stripe Checkout)
+------------------------------ */
+app.post("/api/billing/checkout", async (req, res) => {
+    try {
+        if (!stripeConfigured()) {
+            return res.status(500).json({ ok: false, error: "STRIPE_NOT_CONFIGURED" });
+        }
+
+        const spotify_id = await getSpotifyMeId(req, res);
+        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify’a giriş yap." });
+
+        const base = getBaseUrl(req);
+
+        const session = await createStripeCheckoutSession({
+            spotify_id,
+            success_url: `${base}/premium.html?success=1`,
+            cancel_url: `${base}/premium.html?canceled=1`,
+        });
+
+        return res.json({ url: session?.url || null });
+    } catch (e) {
+        console.error("checkout failed", e);
+        return res.status(500).json({ ok: false, error: "STRIPE_CHECKOUT_FAILED" });
+    }
+});
+
+app.post(
+    "/api/billing/webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+        if (!STRIPE_WEBHOOK_SECRET) {
+            return res.status(500).send("stripe_not_configured");
+        }
+
+        const sig = req.headers["stripe-signature"];
+        const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || "");
+        if (!verifyStripeSignature(raw.toString("utf8"), sig)) {
+            return res.status(400).send("Invalid signature");
+        }
+
+        let event = null;
+        try {
+            event = JSON.parse(raw.toString("utf8"));
+        } catch (err) {
+            console.error("Webhook JSON parse failed", err?.message || err);
+            return res.status(400).send("Invalid payload");
+        }
+
+        try {
+            if (event?.type === "checkout.session.completed") {
+                const data = event.data?.object || {};
+                const spotify_id = data?.metadata?.spotify_id || data?.client_reference_id || "";
+
+                if (spotify_id) {
+                    await grantPremium(spotify_id, 30, "stripe_checkout");
+                } else {
+                    console.warn("checkout.session.completed without spotify_id", data?.id);
+                }
+            }
+        } catch (e) {
+            console.error("Webhook handler error", e);
+        }
+
+        // Respond quickly regardless of downstream issues
+        return res.status(200).json({ received: true });
+    }
+);
 
 // Health/db sanity (admin)
 app.get("/api/admin/db-check", async (req, res) => {
