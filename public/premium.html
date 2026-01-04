@@ -297,6 +297,13 @@
 
         .faq p + p { margin-top: 16px; }
 
+        .disclaimer-note {
+            font-size: 12.5px;
+            opacity: 0.8;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
         @keyframes fadeUp {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -427,6 +434,10 @@
                     </div>
                     <div class="cta-row" style="align-items:flex-end;">
                         <a class="btn cta" href="#" onclick="startCheckout(this); return false;">Premium’a geç ₺29.90</a>
+                        <div class="disclaimer-note muted">
+                            Spotimaker Premium, Spotify tarafından sunulan bir hizmet değildir.<br />
+                            Premium erişim, Spotimaker’ın gelişmiş kürasyon ve liste üretim özelliklerini kapsar.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -444,6 +455,8 @@
 
         <div class="card section faq">
             <h3 style="margin:0">SSS</h3>
+            <p class="muted"><b>Spotimaker Premium, Spotify Premium mı?</b> Hayır. Spotimaker Premium, Spotimaker’ın sunduğu ayrı bir üründür ve Spotify Premium ile bağlantılı değildir.<br />Spotify, Spotify AB’nin tescilli markasıdır. Spotimaker, Spotify ile ilişkili/bağlı bir hizmet değildir.</p>
+            <p class="muted"><b>Premium ile ne satın almış oluyorum?</b> Premium, Spotimaker içinde daha gelişmiş liste oluşturma deneyimini açar (niyet odaklı kürasyon, daha tutarlı enerji akışı, tek tık refresh, keşif–tanıdık denge ayarı gibi).<br />Spotify aboneliğinizin durumu değişmez; Premium yalnızca Spotimaker özelliklerini kapsar.</p>
             <p class="muted"><b>Premium nasıl çalışır?</b> Stripe Checkout ile tek seferlik ödeme yaparsın. Premium 30 gün boyunca aktiftir.</p>
             <p class="muted"><b>İstediğim zaman iptal edebilir miyim?</b> Abonelik değildir. Süre sonunda otomatik olarak sona erer.</p>
         </div>
