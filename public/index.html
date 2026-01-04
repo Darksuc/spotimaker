@@ -322,60 +322,6 @@
             margin-top: 16px;
         }
 
-        .beta-inline {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 6px;
-        }
-
-        .beta-inline-top {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .beta-inline-text {
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        .beta-inline-form {
-            display: none;
-            flex-direction: column;
-            gap: 10px;
-            padding: 12px;
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            background: rgba(255,255,255,.04);
-        }
-
-        .beta-inline-form:not(.hidden) {
-            display: flex;
-        }
-
-        .beta-inline-helper {
-            margin-bottom: -4px;
-            font-size: 13px;
-            color: var(--muted);
-        }
-
-        .beta-inline-form input,
-        .beta-inline-form textarea {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            background: rgba(255,255,255,.06);
-            color: #fff;
-        }
-
-        .beta-inline-form textarea {
-            min-height: 90px;
-            resize: vertical;
-        }
-
         .primary-btn {
             flex: 1 1 240px;
             padding: 14px 18px;
@@ -574,16 +520,6 @@
             color: rgba(255,255,255,.82);
         }
 
-        .allowlist-card {
-            border-style: dashed;
-            background: rgba(255,255,255,.04);
-            color: rgba(255,255,255,.88);
-        }
-
-        .allowlist-card .beta-subtext {
-            margin-top: 4px;
-        }
-
         .compare-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -748,9 +684,13 @@
             <nav class="nav">
                 <button id="aboutOpen" class="ghost-btn btn" type="button">Nedir?</button>
                 <a href="/premium.html" class="navlink btn" style="padding:10px 14px;">Premium</a>
+                <a href="/beta.html" class="navlink btn" style="padding:10px 14px;">Beta erişimi talep et</a>
                 <a id="spotifyLink" href="/login" class="navbtn btn cta" target="_self">Spotify bağla</a>
                 <a id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
             </nav>
+            <div class="beta-subtext" style="margin-top:6px; text-align:right; flex:1 1 100%;">
+                Sınırlı beta: erişim yalnızca onaylı hesaplar içindir.
+            </div>
         </header>
 
         <main class="main-card">
@@ -763,12 +703,9 @@
                 </div>
             </div>
 
-            <div id="allowlistNotice" class="mini-card allowlist-card" style="display:none; margin-top:4px;">
-                <div id="allowlistTitle" style="font-weight:800;">Beta erişimi bulunmuyor</div>
-                <div id="allowlistMessage" class="beta-subtext" style="white-space:pre-line;">Bu Spotify hesabı için beta erişimi bulunmuyor.
-Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıcılar erişebilir.</div>
-                <div id="betaHelperLine" class="beta-subtext">Beta erişimi için Spotify hesabındaki e-posta ile talep bırakabilirsin.</div>
-                <button id="betaOpen" class="ghost-btn" type="button" style="margin-top:8px;">Beta erişimi talep et</button>
+            <div id="betaAccessBanner" class="mini-card" style="display:none; margin-top:6px;">
+                <div style="font-weight:800;">Bu hesap için beta erişimi yok</div>
+                <div id="betaAccessMessage" class="beta-subtext" style="margin-top:4px;">Erişim onayı gerektiğinde <a href="/beta.html" class="navlink" style="padding:4px 8px;">beta sayfası</a> üzerinden talep bırakabilirsin.</div>
             </div>
 
             <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
@@ -777,21 +714,6 @@ Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıc
                 <button id="btn" class="primary-btn btn cta" style="flex:1 1 280px; font-size:18px;">Playlist oluştur</button>
             </div>
 
-            <div id="betaInline" class="beta-inline hidden">
-                <div class="beta-inline-top">
-                    <div class="beta-inline-text">Bu hesap beta erişimine sahip değil.</div>
-                    <button id="betaInlineOpen" data-beta-request-btn="1" class="btn" type="button" style="padding:10px 14px; font-size:14px;">Beta erişimi iste</button>
-                </div>
-                <form id="betaInlineForm" class="beta-inline-form hidden" novalidate>
-                    <div class="beta-inline-helper">Lütfen Spotify hesabınızda kayıtlı olan e-posta adresini girin.</div>
-                    <input id="betaInlineEmail" name="email" type="email" placeholder="Spotify e-posta adresin" required />
-                    <textarea id="betaInlineNote" name="note" maxlength="500" placeholder="Not (opsiyonel)"></textarea>
-                    <button id="betaInlineSubmit" class="ghost-btn" type="submit" style="font-size:15px;">Talep gönder</button>
-                    <div id="betaInlineStatus" class="hint" style="margin:4px 0 0;" aria-live="polite"></div>
-                </form>
-            </div>
-
-            <div id="betaDisabledNote" class="hint" style="display:none; margin-top:6px;">Erişim isteği bırakmak için Spotify hesabındaki e-posta adresini gir.</div>
 
             <div class="slider-wrap">
                 <div class="slider-top">
@@ -854,29 +776,6 @@ Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıc
                 <button id="feedbackSubmit" class="primary-btn btn cta" type="button">Gönder</button>
                 </div>
                 <div id="feedbackStatus" class="hint"></div>
-            </div>
-        </div>
-
-        <div id="betaModal" class="modal-backdrop" role="dialog" aria-modal="true">
-            <div class="modal-card">
-                <div class="modal-top">
-                    <h3 style="margin:0;">Beta erişimi bulunmuyor</h3>
-                    <button id="betaClose" class="modal-close" type="button">Kapat</button>
-                </div>
-                <p id="betaModalMsg" class="cardDesc" style="margin:8px 0 10px; white-space:pre-line;">
-Bu Spotify hesabı için beta erişimi bulunmuyor.
-Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıcılar erişebilir.
-                </p>
-                <p class="beta-subtext" style="margin:4px 0 10px;">Erişim isteği bırakmak için Spotify hesabındaki e-posta adresini gir.</p>
-                <label class="beta-subtext" style="display:block; margin:6px 0 4px; color:rgba(255,255,255,.9);">E-posta</label>
-                <input id="betaEmail" type="email" placeholder="ornek@spotify.com" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:#fff;" />
-                <small class="hint" style="display:block; margin:6px 0 10px; color:rgba(255,255,255,.7);">Lütfen Spotify hesabınızda kayıtlı olan e-posta adresini girin.</small>
-                <label class="beta-subtext" style="display:block; margin:6px 0 4px; color:rgba(255,255,255,.9);">Opsiyonel not (max 500 karakter)</label>
-                <textarea id="betaNote" maxlength="500" placeholder="Opsiyonel not..." style="min-height:90px;"></textarea>
-                <div class="row" style="margin-top:10px;">
-                    <button id="betaSubmit" class="primary-btn btn cta" type="button">Talep gönder</button>
-                </div>
-                <div id="betaStatus" class="hint"></div>
             </div>
         </div>
 
@@ -1001,62 +900,16 @@ Spotimaker neyi farklı yapar?
         const aboutOpen = document.getElementById("aboutOpen");
         const aboutClose = document.getElementById("aboutClose");
         const aboutCloseCta = document.getElementById("aboutCloseCta");
-        const allowlistNotice = document.getElementById("allowlistNotice");
-        const allowlistTitle = document.getElementById("allowlistTitle");
-        const allowlistMessage = document.getElementById("allowlistMessage");
-        const betaHelperLine = document.getElementById("betaHelperLine");
-        const betaModal = document.getElementById("betaModal");
-        const betaOpen = document.getElementById("betaOpen");
-        const betaClose = document.getElementById("betaClose");
-        const betaEmail = document.getElementById("betaEmail");
-        const betaNote = document.getElementById("betaNote");
-        const betaSubmit = document.getElementById("betaSubmit");
-        const betaStatus = document.getElementById("betaStatus");
-        const betaModalMsg = document.getElementById("betaModalMsg");
-        const betaDisabledNote = document.getElementById("betaDisabledNote");
-        const betaInline = document.getElementById("betaInline");
-        const betaInlineOpen = document.getElementById("betaInlineOpen");
-        const betaInlineForm = document.getElementById("betaInlineForm");
-        const betaInlineEmail = document.getElementById("betaInlineEmail");
-        const betaInlineNote = document.getElementById("betaInlineNote");
-        const betaInlineSubmit = document.getElementById("betaInlineSubmit");
-        const betaInlineStatus = document.getElementById("betaInlineStatus");
+        const betaAccessBanner = document.getElementById("betaAccessBanner");
+        const betaAccessMessage = document.getElementById("betaAccessMessage");
 
         const betaMessageText = "Bu Spotify hesabı için beta erişimi bulunmuyor.\nSpotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıcılar erişebilir.";
         let betaBlocked = false;
-        let __betaAccessRequired = false;
-        window.__betaAccessRequired = false;
 
-        function showBetaInline(show) {
-            if (!betaInline) return;
-            if (show) {
-                betaInline.classList.remove("hidden");
-            } else {
-                betaInline.classList.add("hidden");
-            }
-
-            if (!show && betaInlineForm) betaInlineForm.classList.add("hidden");
-            if (show && betaDisabledNote) betaDisabledNote.style.display = "block";
-            if (!show && betaInlineStatus) betaInlineStatus.textContent = "";
-        }
-
-        function toggleBetaInlineForm(show) {
-            if (!betaInlineForm) return;
-            showBetaInline(true);
-            if (show) {
-                betaInlineForm.classList.remove("hidden");
-                if (betaInlineStatus) betaInlineStatus.textContent = "";
-                if (betaInlineEmail) betaInlineEmail.focus();
-            } else {
-                betaInlineForm.classList.add("hidden");
-                if (betaInlineStatus) betaInlineStatus.textContent = "";
-            }
-        }
-
-        function markBetaAccessRequired() {
-            __betaAccessRequired = true;
-            window.__betaAccessRequired = true;
-            showBetaInline(true);
+        function markBetaAccessRequired(message = "") {
+            betaBlocked = true;
+            if (betaAccessBanner) betaAccessBanner.style.display = "block";
+            if (message && betaAccessMessage) betaAccessMessage.textContent = message;
         }
 
         async function apiFetch(url, options = {}) {
@@ -1078,55 +931,23 @@ Spotimaker neyi farklı yapar?
 
         function disableBetaActions() {
             betaBlocked = true;
-            markBetaAccessRequired();
+            markBetaAccessRequired(betaMessageText);
             if (btn) {
                 btn.disabled = true;
-                btn.textContent = "Playlist oluştur";
+                btn.textContent = "Beta erişimi gerekli";
                 btn.setAttribute("aria-disabled", "true");
             }
             if (refreshBtn) {
                 refreshBtn.disabled = true;
-                refreshBtn.textContent = "Beta erişimi yok";
+                refreshBtn.textContent = "Beta erişimi gerekli";
             }
-            if (spotifyLink) {
-                spotifyLink.textContent = "Beta erişimi yok";
-                spotifyLink.style.pointerEvents = "none";
-                spotifyLink.style.opacity = "0.7";
-            }
-            if (betaDisabledNote) betaDisabledNote.style.display = "block";
-            if (betaHelperLine) betaHelperLine.style.display = "block";
-            showBetaInline(true);
-        }
-
-        function toggleBetaModal(show, message = "") {
-            if (!betaModal) return;
-            betaModal.style.display = show ? "flex" : "none";
-            const finalMsg = message ? String(message) : betaMessageText;
-            if (betaModalMsg) {
-                betaModalMsg.textContent = finalMsg;
-            }
-            if (show && betaEmail) betaEmail.focus();
-            if (!show && betaStatus) betaStatus.textContent = "";
-        }
-
-        function showAllowlistNotice(show, message = "") {
-            if (!allowlistNotice) return;
-            if (show) {
-                const msg = message || betaMessageText;
-                if (allowlistTitle) allowlistTitle.textContent = "Beta erişimi bulunmuyor";
-                if (allowlistMessage) allowlistMessage.textContent = msg;
-            }
-            allowlistNotice.style.display = show ? "block" : "none";
-            if (!show && betaDisabledNote) betaDisabledNote.style.display = "none";
-            if (!show && betaHelperLine) betaHelperLine.style.display = "none";
         }
 
         function handleBetaAccessRequired(customMessage = "") {
-            markBetaAccessRequired();
             const msg = customMessage || betaMessageText;
-            showAllowlistNotice(true, msg);
+            markBetaAccessRequired(msg);
             disableBetaActions();
-            toggleBetaModal(true, msg);
+            showToast(msg + " Beta talebi için beta sayfasını kullanabilirsin.");
         }
 
         // ---------- premium/free UI ----------
@@ -1243,7 +1064,7 @@ Spotimaker neyi farklı yapar?
                 const r = await apiFetch("/api/spotify/status");
                 const s = await r.json();
 
-                showAllowlistNotice(false);
+                if (!betaBlocked && betaAccessBanner) betaAccessBanner.style.display = "none";
 
                 if (!spotifyStatus || !spotifyLink) return;
 
@@ -1630,132 +1451,6 @@ Spotimaker neyi farklı yapar?
                 refreshStatus.dataset.loading = "0";
             }
         };
-
-        function setBetaInlineStatus(message, color = "rgba(255,255,255,.85)") {
-            if (!betaInlineStatus) return;
-            betaInlineStatus.textContent = message;
-            betaInlineStatus.style.color = color;
-        }
-
-        async function handleBetaInlineSubmit(form) {
-            if (!betaInlineEmail || !betaInlineSubmit) return;
-
-            const email = String(betaInlineEmail.value || "").trim();
-            const note = String(betaInlineNote?.value || "").trim();
-
-            if (!email) {
-                setBetaInlineStatus("E-posta zorunlu.", "var(--danger)");
-                return;
-            }
-
-            if (note.length > 500) {
-                setBetaInlineStatus("Not 500 karakteri aşmamalı.", "var(--danger)");
-                return;
-            }
-
-            setBetaInlineStatus("", "rgba(255,255,255,.85)");
-            betaInlineSubmit.disabled = true;
-            betaInlineSubmit.textContent = "Gönderiliyor...";
-
-            console.log("[beta] submitting request", email);
-
-            try {
-                const resp = await fetch("/api/beta/request", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, note }),
-                });
-
-                console.log("[beta] submit response status", resp.status);
-
-                const j = await resp.json().catch(() => ({}));
-                if (resp.ok && j?.ok) {
-                    setBetaInlineStatus("Talebin alındı. Onaylandığında erişimin açılacaktır.", "#22c55e");
-                    betaInlineEmail.value = "";
-                    if (betaInlineNote) betaInlineNote.value = "";
-                    return;
-                }
-
-                setBetaInlineStatus("Talep gönderilemedi. Lütfen daha sonra tekrar dene.", "var(--danger)");
-            } catch (e) {
-                setBetaInlineStatus("Talep gönderilemedi. Lütfen daha sonra tekrar dene.", "var(--danger)");
-            } finally {
-                betaInlineSubmit.disabled = false;
-                betaInlineSubmit.textContent = "Talep gönder";
-            }
-        }
-
-        document.addEventListener("click", (e) => {
-            const btnTarget = e.target.closest("[data-beta-request-btn]");
-            if (!btnTarget) return;
-
-            e.preventDefault();
-            console.log("[beta] request button clicked");
-
-            const shouldOpen = !betaInlineForm || betaInlineForm.classList.contains("hidden");
-            toggleBetaInlineForm(shouldOpen);
-        });
-
-        document.addEventListener("submit", (e) => {
-            const form = e.target;
-            if (!(form instanceof HTMLFormElement)) return;
-            if (form.id !== "betaInlineForm") return;
-
-            e.preventDefault();
-            handleBetaInlineSubmit(form);
-        });
-
-        betaOpen?.addEventListener("click", () => toggleBetaModal(true));
-        betaClose?.addEventListener("click", () => toggleBetaModal(false));
-        betaModal?.addEventListener("click", (e) => {
-            if (e.target === betaModal) toggleBetaModal(false);
-        });
-
-        betaSubmit?.addEventListener("click", async () => {
-            if (!betaEmail) return;
-
-            const email = String(betaEmail.value || "").trim();
-            const note = String(betaNote?.value || "").trim();
-
-            if (!email) {
-                betaStatus.textContent = "E-posta zorunlu.";
-                betaStatus.style.color = "var(--danger)";
-                return;
-            }
-
-            if (note.length > 500) {
-                betaStatus.textContent = "Not 500 karakteri aşmamalı.";
-                betaStatus.style.color = "var(--danger)";
-                return;
-            }
-
-            betaSubmit.disabled = true;
-            betaSubmit.textContent = "Gönderiliyor...";
-            betaStatus.textContent = "";
-            betaStatus.style.color = "rgba(255,255,255,.85)";
-
-            try {
-                const resp = await fetch("/api/beta/request", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, note })
-                });
-
-                const j = await resp.json().catch(() => ({}));
-                if (!resp.ok || !j.ok) throw new Error(j.error || "Talep kaydedilemedi.");
-
-                betaStatus.style.color = "#22c55e";
-                betaStatus.textContent = "Talebin alındı. Onaylandığında erişimin açılacaktır.";
-                betaEmail.value = "";
-                if (betaNote) betaNote.value = "";
-            } catch (e) {
-                betaStatus.style.color = "var(--danger)";
-                betaStatus.textContent = String(e?.message || e);
-            } finally {
-                betaSubmit.disabled = false;
-                betaSubmit.textContent = "Talep gönder";
-            }
-        });
 
         // ---------- feedback ----------
         feedbackOpenBtn?.addEventListener("click", () => toggleFeedbackModal(true));
