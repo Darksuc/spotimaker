@@ -122,6 +122,48 @@ export async function isPremium(spotify_id) {
     return until > now();
 }
 
+export async function grantPremium(spotify_id, days = 30, source = "unknown") {
+    await ensureDbReady();
+
+    const sid = String(spotify_id);
+    const addMs = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
+    const ts = now();
+
+    await ensureUserExists(sid);
+
+    const client = await pool.connect();
+    try {
+        await client.query("begin");
+
+        const current = await client.query(
+            `select premium_until from users where spotify_id=$1 for update`,
+            [sid]
+        );
+        const existing = Number(current.rows?.[0]?.premium_until || 0);
+        const base = Math.max(existing, ts);
+        const newUntil = base + addMs;
+
+        await client.query(
+            `update users set premium_until=$2 where spotify_id=$1`,
+            [sid, newUntil]
+        );
+
+        await client.query(
+            `insert into events (spotify_id, type, ts, meta)
+             values ($1, 'premium_granted', $2, $3)`,
+            [sid, ts, { source, days: Number(days) || 0 }]
+        );
+
+        await client.query("commit");
+        return { ok: true, premium_until: newUntil, added_ms: addMs };
+    } catch (e) {
+        await client.query("rollback");
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
 // --- EVENTS / STATS ---
 export async function markPlaylistCreated(spotify_id, meta = "") {
     await ensureDbReady();

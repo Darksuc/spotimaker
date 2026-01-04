@@ -91,11 +91,13 @@
 <body>
     <div class="top">
         <a class="btn" href="/">← Geri</a>
-        <a class="btn white" href="#" onclick="alert('Odeme eklenmedi. Yakinda!')">Premium al</a>
+        <a class="btn white" href="#" onclick="startCheckout(this); return false;">Premium al</a>
     </div>
 
     <h1>Premium Early Access</h1>
     <p class="muted">Niyetini anlayan, akışı koruyan ve tek tık alternatifler sunan kürasyon. Erken erişim fiyatı.</p>
+
+    <div id="statusMsg" class="muted" style="margin:10px 0 16px"></div>
 
     <div class="grid">
         <div class="card">
@@ -112,8 +114,8 @@
 
         <div class="card" style="border-color:rgba(34,197,94,.5)">
             <h2>Premium</h2>
-            <div class="price">₺29.90<span style="font-size:14px;font-weight:700">/ay</span></div>
-            <div class="muted">Erken erişim fiyatı. İstediğin zaman iptal.</div>
+            <div class="price">₺29.90 <span style="font-size:14px;font-weight:700">(30 gün tek sefer)</span></div>
+            <div class="muted">Erken erişim fiyatı. 30 gün boyunca sınırsız kullan.</div>
             <ul>
                 <li>🎯 Niyet analizi: mood + aktivite + tempo</li>
                 <li>🌊 Akış segmentleri: intro → mid → peak → outro</li>
@@ -121,7 +123,7 @@
                 <li>🚫 Tekrarsız: artist üst üste gelmez</li>
             </ul>
             <div style="margin-top:14px">
-                <a class="btn white" href="#" onclick="alert('Odeme eklenmedi. Yakinda!')">Premium’a geç (₺29.90)</a>
+                <a class="btn white" href="#" onclick="startCheckout(this); return false;">Premium’a geç (₺29.90)</a>
             </div>
         </div>
     </div>
@@ -142,6 +144,33 @@
         </div>
 
         <script>
+            const statusMsg = document.getElementById("statusMsg");
+
+            const params = new URLSearchParams(location.search);
+            if (params.get("success") === "1") {
+                statusMsg.textContent = "Premium aktif ✅";
+            } else if (params.get("canceled") === "1") {
+                statusMsg.textContent = "Ödeme iptal edildi.";
+            }
+
+            async function startCheckout(btn) {
+                try {
+                    statusMsg.textContent = "Yönlendiriliyor...";
+                    if (btn) btn.disabled = true;
+                    const r = await fetch("/api/billing/checkout", {
+                        method: "POST",
+                        credentials: "include"
+                    });
+                    const j = await r.json().catch(() => ({}));
+                    if (!r.ok || !j.url) throw new Error(j.error || "Stripe oturumu açılamadı.");
+                    window.location = j.url;
+                } catch (e) {
+                    statusMsg.textContent = "❌ " + String(e.message || e);
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            }
+
             const btn = document.getElementById("redeemBtn");
             const inp = document.getElementById("redeemCode");
             const msg = document.getElementById("redeemMsg");
@@ -170,7 +199,7 @@
             };
         </script>
 
-        <p class="muted"><b>Premium nasil acilacak?</b> Stripe ile odeme ekleyecegiz. Simdilik test asamasinda.</p>
+        <p class="muted"><b>Premium nasıl çalışıyor?</b> Stripe Checkout ile tek seferlik ödeme yaparsın, hesabın 30 gün premium olur.</p>
         <p class="muted"><b>Spotify’a ekleme neden bazen eksik?</b> Bazi sarkilar Spotify search’te eslesmeyebilir. Yakinda eslesme kalitesini artiracagiz.</p>
     </div>
 </body>
