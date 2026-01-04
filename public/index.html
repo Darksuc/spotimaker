@@ -29,27 +29,29 @@
             color: var(--text);
             min-height: 100vh;
             animation: fadeIn 0.4s ease-out;
+            line-height: 1.65;
         }
 
         .page {
-            max-width: 980px;
-            margin: 0 auto;
-            padding: 28px 18px 60px;
+            max-width: 1100px;
+            margin: 34px auto 70px;
+            padding: 0 20px;
         }
 
         .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 14px;
-            padding: 14px 16px;
+            gap: 18px;
+            padding: 18px 18px;
             border: 1px solid var(--line);
             border-radius: 18px;
-            background: rgba(18,18,26,.70);
+            background: rgba(18,18,26,.78);
             backdrop-filter: blur(10px);
             position: relative;
             z-index: 50;
             animation: fadeUp 0.6s ease-out both;
+            flex-wrap: wrap;
         }
 
         .brand {
@@ -57,24 +59,26 @@
             align-items: center;
             gap: 12px;
             min-width: 260px;
+            flex: 1;
         }
 
         .logo {
-            width: 44px;
-            height: 44px;
+            width: 46px;
+            height: 46px;
             border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid var(--line);
-            background: linear-gradient(135deg, rgba(34,197,94,.18), rgba(59,130,246,.14));
+            background: linear-gradient(135deg, rgba(34,197,94,.24), rgba(59,130,246,.18));
+            box-shadow: 0 12px 32px rgba(0,0,0,.28);
             flex: 0 0 auto;
         }
 
         .brand-name {
             font-weight: 900;
-            letter-spacing: .2px;
-            font-size: 18px;
+            letter-spacing: -.1px;
+            font-size: 20px;
             margin: 0;
         }
 
@@ -85,7 +89,7 @@
         }
 
         .badges {
-            margin-top: 6px;
+            margin-top: 10px;
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -93,22 +97,29 @@
         }
 
         .spotify-badge {
-            display: inline-block;
-            padding: 6px 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
             font-size: 12px;
             border-radius: 999px;
             background: rgba(255,255,255,.08);
             border: 1px solid var(--line);
             color: var(--muted);
+            letter-spacing: .1px;
         }
 
         .pill {
-            display: inline-block;
-            padding: 4px 8px;
-            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
             border-radius: 999px;
             border: 1px solid var(--line);
-            background: rgba(255,255,255,.10);
+            background: rgba(255,255,255,.08);
+            font-size: 12px;
+            margin-bottom: 4px;
+            letter-spacing: .1px;
             color: rgba(255,255,255,.85);
         }
 
@@ -126,15 +137,78 @@
             justify-content: flex-end;
         }
 
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            text-decoration: none;
+            transition: transform .16s ease, box-shadow .18s ease, opacity .18s ease, filter .18s ease;
+            background: rgba(255,255,255,.06);
+            font-weight: 800;
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            color: #fff;
+        }
+
+        .btn.white {
+            background: #fff;
+            color: #0b0b0f;
+            font-weight: 800;
+            border-color: transparent;
+        }
+
+        .btn.cta {
+            color: #0c1a0f;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: linear-gradient(135deg, rgba(163,230,53,0.9), rgba(74,222,128,0.95), rgba(34,197,94,0.95));
+            box-shadow: 0 18px 40px rgba(34,197,94,0.3);
+        }
+
+        .btn.cta::before {
+            content: "";
+            position: absolute;
+            inset: -30%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.45), transparent 40%), radial-gradient(circle at 70% 60%, rgba(34,197,94,0.35), transparent 40%);
+            filter: blur(18px);
+            z-index: -1;
+            opacity: 0.7;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 26px rgba(0,0,0,.28);
+            filter: brightness(1.03);
+        }
+
+        .btn.cta:hover {
+            box-shadow: 0 18px 42px rgba(34,197,94,0.32);
+        }
+
+        .btn:active {
+            transform: translateY(-1px) scale(.995);
+        }
+
+        .btn:focus-visible {
+            outline: 2px solid rgba(74,222,128,0.75);
+            outline-offset: 2px;
+        }
+
         .navlink {
             color: var(--muted);
             text-decoration: none;
-            padding: 10px 10px;
+            padding: 10px 12px;
             border-radius: 12px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.05);
+            font-weight: 700;
         }
 
             .navlink:hover {
-                background: rgba(255,255,255,.06);
+                background: rgba(255,255,255,.08);
                 color: #fff;
             }
 
@@ -142,8 +216,8 @@
             color: #0b0b0f;
             background: #fff;
             text-decoration: none;
-            padding: 10px 12px;
-            border-radius: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
             font-weight: 900;
             border: 1px solid rgba(255,255,255,.2);
             transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
@@ -156,13 +230,14 @@
             }
 
         .main-card {
-            margin: 22px auto 0;
-            padding: 24px;
+            margin: 28px auto 0;
+            padding: 28px;
             border: 1px solid var(--line);
-            border-radius: 24px;
-            background: rgba(18,18,26,.80);
+            border-radius: 22px;
+            background: rgba(18,18,26,.82);
             backdrop-filter: blur(14px);
             animation: fadeUp 0.7s ease-out both;
+            box-shadow: 0 20px 60px rgba(0,0,0,.26);
         }
 
         .hero {
@@ -171,44 +246,46 @@
             justify-content: space-between;
             align-items: flex-start;
             flex-wrap: wrap;
-            margin-bottom: 14px;
+            margin-bottom: 18px;
         }
 
         .h1 {
-            margin: 0 0 6px 0;
-            font-size: 28px;
+            margin: 6px 0 8px 0;
+            font-size: 34px;
             letter-spacing: -.4px;
         }
 
         .p {
             margin: 0;
             color: var(--muted);
-            line-height: 1.55;
-            max-width: 62ch;
+            line-height: 1.6;
+            max-width: 68ch;
+            font-size: 16px;
         }
 
         .hint {
             color: var(--muted);
-            margin-top: 10px;
+            margin-top: 12px;
             font-size: 13px;
         }
 
         textarea {
             width: 100%;
-            min-height: 120px;
-            padding: 14px;
+            min-height: 150px;
+            padding: 18px;
             font-size: 16px;
             border-radius: 16px;
             border: 1px solid var(--line);
-            background: rgba(255,255,255,.04);
+            background: rgba(255,255,255,.05);
             color: #fff;
             outline: none;
             resize: vertical;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
         }
 
             textarea:focus {
-                border-color: rgba(59,130,246,.45);
-                box-shadow: 0 0 0 4px rgba(59,130,246,.10);
+                border-color: rgba(74,222,128,.5);
+                box-shadow: 0 0 0 4px rgba(34,197,94,.12);
             }
 
         .row {
@@ -216,27 +293,22 @@
             gap: 12px;
             align-items: center;
             flex-wrap: wrap;
-            margin-top: 12px;
+            margin-top: 16px;
         }
 
         .primary-btn {
-            flex: 1 1 220px;
+            flex: 1 1 240px;
             padding: 14px 18px;
             font-size: 18px;
             border-radius: 16px;
-            background: linear-gradient(135deg, #22c55e, #3b82f6);
-            color: #0b0b0f;
             border: none;
             font-weight: 900;
             cursor: pointer;
             transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+            background: linear-gradient(135deg, rgba(163,230,53,0.9), rgba(74,222,128,0.95), rgba(34,197,94,0.95));
+            color: #0c1a0f;
+            box-shadow: 0 18px 40px rgba(34,197,94,0.3);
         }
-
-            .primary-btn:hover {
-                opacity: .95;
-                transform: translateY(-1px);
-                box-shadow: 0 14px 36px rgba(0,0,0,.35);
-            }
 
             .primary-btn:disabled {
                 opacity: .6;
@@ -268,25 +340,27 @@
         }
 
         .slider-wrap {
-            margin-top: 14px;
-            padding: 14px;
+            margin-top: 20px;
+            padding: 18px;
             border: 1px solid var(--line);
-            border-radius: 16px;
-            background: rgba(255,255,255,.03);
+            border-radius: 18px;
+            background: rgba(18,18,26,.75);
+            box-shadow: 0 12px 32px rgba(0,0,0,.24);
         }
 
         .slider-top {
             display: flex;
             align-items: baseline;
             justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 8px;
+            gap: 12px;
+            margin-bottom: 10px;
         }
 
         .slider-note {
             font-size: 12px;
-            color: rgba(255,255,255,.55);
-            line-height: 1.35;
+            color: rgba(255,255,255,.65);
+            line-height: 1.5;
+            margin-top: 12px;
         }
 
         input[type="range"] {
@@ -333,13 +407,16 @@
         }
 
         .card {
-            margin-top: 16px;
-            padding: 16px;
+            margin-top: 18px;
+            padding: 20px;
             border: 1px solid var(--line);
-            border-radius: 16px;
-            background: rgba(255,255,255,.03);
+            border-radius: 18px;
+            background: rgba(18,18,26,.82);
             animation: fadeUp 0.7s ease-out both;
+            box-shadow: 0 20px 60px rgba(0,0,0,.26);
         }
+
+        .muted { color: var(--muted); }
 
         .cardTitle {
             margin: 0;
@@ -575,52 +652,56 @@
             </div>
 
             <nav class="nav">
-                <button id="aboutOpen" class="ghost-btn" type="button">Nedir?</button>
-                <a href="/premium.html" class="navlink">Premium</a>
-                <a id="spotifyLink" href="/login" class="navbtn" target="_self">Spotify bağla</a>
-                <a id="logoutLink" href="/logout" class="navlink" style="display:none;">Çıkış yap</a>
+                <button id="aboutOpen" class="ghost-btn btn" type="button">Nedir?</button>
+                <a href="/premium.html" class="navlink btn" style="padding:10px 14px;">Premium</a>
+                <a id="spotifyLink" href="/login" class="navbtn btn cta" target="_self">Spotify bağla</a>
+                <a id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
             </nav>
         </header>
 
         <main class="main-card">
             <div class="hero">
                 <div>
+                    <div class="pill" style="margin:0 0 10px 0; padding:6px 14px; font-size:12px;">Mood + vibe odaklı liste</div>
                     <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
                     <p class="p">Mood + ortam + his yeter. İstersen playlisti Spotify hesabına tek tıkla eklersin.</p>
-                    <div class="hint">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
+                    <div class="hint" style="opacity:.85;">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
                 </div>
             </div>
 
             <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
 
             <div class="row">
-                <button id="btn" class="primary-btn">Playlist oluştur</button>
+                <button id="btn" class="primary-btn btn cta" style="flex:1 1 280px; font-size:18px;">Playlist oluştur</button>
             </div>
 
             <div class="slider-wrap">
                 <div class="slider-top">
-                    <div style="display:flex; gap:8px; align-items:baseline;">
-                        <span style="color:var(--muted); font-size:13px;">Şarkı sayısı:</span>
-                        <b><span id="countVal">20</span></b>
+                    <div>
+                        <div class="muted" style="font-size:13px;">Şarkı sayısı</div>
+                        <div id="rangeHint" style="color:rgba(255,255,255,.75); font-weight:700; font-size:12px; margin-top:4px;">20 - 40</div>
                     </div>
-                    <div id="rangeHint" style="color:rgba(255,255,255,.55); font-size:12px;">20 - 40</div>
+                    <div style="font-weight:900; font-size:20px; letter-spacing:-.2px;"> <span id="countVal">20</span> şarkı</div>
                 </div>
 
-                <input id="count" type="range" min="20" max="40" step="10" value="20" />
-                <div id="countHint" style="margin-top:8px; opacity:.85; font-size:12px;"></div>
+                <input id="count" type="range" min="20" max="40" step="10" value="20" style="margin:6px 0 2px;" />
+                <div id="countHint" style="margin-top:8px; opacity:.9; font-size:12px;"></div>
 
-                <a href="/premium.html" id="goPremium" style="display:inline-block; margin-top:10px; font-size:12px; opacity:.9;">
-                    Premium’a geç →
-                </a>
-
-                <div class="slider-note">
-                    Free: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                    <a href="/premium.html" id="goPremium" class="btn" style="font-size:13px; padding:9px 12px;">Premium’a geç →</a>
+                    <div class="slider-note">Free: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.</div>
                 </div>
             </div>
 
             <div class="card" style="margin-top:14px">
-                <p class="cardDesc" style="margin-bottom:8px;">Premium: daha iyi eşleşme, daha akışkan enerji ve tek tıkla alternatifler.</p>
-                <a href="/premium.html" class="ghost-btn" style="margin-top:16px; display:inline-block;">Premium’u keşfet →</a>
+                <h3 class="cardTitle" style="margin:0 0 10px 0; letter-spacing:-.1px;">Premium’u keşfet</h3>
+                <p class="cardDesc" style="margin-bottom:12px;">Premium: daha iyi eşleşme, daha akışkan enerji ve tek tıkla alternatifler.</p>
+                <ul style="margin:0 0 12px 18px; color:var(--muted); line-height:1.5;">
+                    <li>Daha akışkan enerji akışı</li>
+                    <li>Tek tıkla aynı vibe’da alternatif</li>
+                    <li>Spotify’a kaydetmede daha yüksek limit</li>
+                </ul>
+                <a href="/premium.html" class="btn white" style="margin-top:12px; display:inline-flex; gap:8px; align-items:center;">Premium’u keşfet →</a>
             </div>
 
             <div id="loadingWrap" class="loadingWrap">
@@ -643,20 +724,20 @@
         </main>
     </div>
 
-    <div id="feedbackModal" class="modal-backdrop" role="dialog" aria-modal="true">
-        <div class="modal-card">
-            <div class="modal-top">
-                <h3 style="margin:0;">Geri Bildirim</h3>
-                <button id="feedbackCloseBtn" class="modal-close" type="button">Kapat</button>
+        <div id="feedbackModal" class="modal-backdrop" role="dialog" aria-modal="true">
+            <div class="modal-card">
+                <div class="modal-top">
+                    <h3 style="margin:0;">Geri Bildirim</h3>
+                    <button id="feedbackCloseBtn" class="modal-close" type="button">Kapat</button>
+                </div>
+                <p class="cardDesc" style="margin:8px 0 10px;">Kısa bir not bırak; ürün içinden direkt admin paneline düşsün.</p>
+                <textarea id="feedbackMessage" placeholder="Beğendiğin/eksik bulduğun noktalar..." style="min-height:120px;"></textarea>
+                <div class="row" style="margin-top:10px;">
+                <button id="feedbackSubmit" class="primary-btn btn cta" type="button">Gönder</button>
+                </div>
+                <div id="feedbackStatus" class="hint"></div>
             </div>
-            <p class="cardDesc" style="margin:8px 0 10px;">Kısa bir not bırak; ürün içinden direkt admin paneline düşsün.</p>
-            <textarea id="feedbackMessage" placeholder="Beğendiğin/eksik bulduğun noktalar..." style="min-height:120px;"></textarea>
-            <div class="row" style="margin-top:10px;">
-                <button id="feedbackSubmit" class="primary-btn" type="button">Gönder</button>
-            </div>
-            <div id="feedbackStatus" class="hint"></div>
         </div>
-    </div>
 
     <div id="aboutModal" class="modal-backdrop" role="dialog" aria-modal="true">
         <div class="modal-card">
@@ -676,7 +757,7 @@ Spotimaker neyi farklı yapar?
             </p>
             <div class="row" style="margin-top:6px; gap:10px;">
                 <button id="aboutCloseCta" class="ghost-btn" type="button">Kapat</button>
-                <a href="/premium.html" class="primary-btn" style="text-align:center; flex:1; text-decoration:none;">Premium’u keşfet →</a>
+                <a href="/premium.html" class="primary-btn btn cta" style="text-align:center; flex:1; text-decoration:none;">Premium’u keşfet →</a>
             </div>
         </div>
     </div>
