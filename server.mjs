@@ -1511,7 +1511,7 @@ app.post("/api/feedback", async (req, res) => {
 app.post("/api/beta/request", async (req, res) => {
     try {
         if (!dbEnabled || !pool) {
-            return res.status(503).json({ ok: false, error: "Şu an beta talebi alınamıyor (DB devre dışı)." });
+            return res.status(500).json({ ok: false, error: "DB_ERROR" });
         }
 
         const email = String(req.body?.email || "").trim();
