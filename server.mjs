@@ -25,6 +25,9 @@ import {
     saveFeedback,
     getFeedbackMessages,
     dbEnabled,
+    createBetaRequest,
+    listBetaRequests,
+    updateBetaRequestStatus,
 } from "./db.mjs";
 
 // Render/IPv6 timeout sorunlarına karşı
@@ -111,6 +114,13 @@ async function getSpotifyProfileText(req, res, spotifyToken) {
             spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term"),
             spotifyFetch(req, res, "https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term"),
         ]);
+
+        if (topTracksRes.betaAccessRequired || topArtistsRes.betaAccessRequired) {
+            const err = new Error("BETA_ACCESS_REQUIRED");
+            err.code = "BETA_ACCESS_REQUIRED";
+            err.betaAccessRequired = true;
+            throw err;
+        }
 
         if (topTracksRes.ok && topArtistsRes.ok) {
             const tracksJson = topTracksRes.json;
@@ -219,6 +229,38 @@ function escapeHtml(s) {
 ------------------------------ */
 function normalizeStr(s) {
     return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+const BETA_ACCESS_RESPONSE = {
+    code: "BETA_ACCESS_REQUIRED",
+    message:
+        "Bu Spotify hesabı için beta erişimi bulunmuyor. Spotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıcılar erişebilir.",
+};
+
+function spotifyErrorMessage(data) {
+    if (!data) return "";
+    if (typeof data === "string") return data;
+    if (typeof data?.error === "string") return data.error;
+    if (typeof data?.error?.message === "string") return data.error.message;
+    if (typeof data?.message === "string") return data.message;
+    return "";
+}
+
+function isSpotifyBetaAccessError(status, data) {
+    if (status !== 403) return false;
+    const msg = spotifyErrorMessage(data).toLowerCase();
+    if (!msg) return Boolean(Number(data?.error?.status || 0) === 403);
+    return (
+        msg.includes("developer dashboard") ||
+        msg.includes("developer mode") ||
+        msg.includes("allowlist") ||
+        msg.includes("allow-listed") ||
+        msg.includes("register")
+    );
+}
+
+function sendBetaAccessRequired(res) {
+    return res.status(403).json(BETA_ACCESS_RESPONSE);
 }
 
 function getBaseUrl(req) {
@@ -559,11 +601,14 @@ async function spotifyFetch(req, res, url, options = {}) {
         ({ r, data } = await doReq(token));
     }
 
+    const betaAccessRequired = isSpotifyBetaAccessError(r.status, data);
+
     return {
         ok: r.ok,
         status: r.status,
         json: typeof data === "string" ? null : data,
         text: typeof data === "string" ? data : null,
+        betaAccessRequired,
     };
 }
 
@@ -572,8 +617,13 @@ async function spotifyFetch(req, res, url, options = {}) {
 ------------------------------ */
 async function spotifyMe(req, res) {
     const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
-    if (!meRes.ok) return { ok: false, me: null, status: meRes.status, details: meRes.json || meRes.text };
-    return { ok: true, me: meRes.json, status: 200, details: null };
+    if (!meRes.ok) {
+        if (meRes.betaAccessRequired) {
+            return { ok: false, me: null, status: 403, details: null, betaAccessRequired: true };
+        }
+        return { ok: false, me: null, status: meRes.status, details: meRes.json || meRes.text };
+    }
+    return { ok: true, me: meRes.json, status: 200, details: null, betaAccessRequired: false };
 }
 
 async function spotifyCreatePlaylist(req, res, userId, title, description) {
@@ -597,7 +647,7 @@ async function spotifySearchTrack(req, res, q) {
         new URLSearchParams({ q, type: "track", limit: "1" }).toString();
 
     const r = await spotifyFetch(req, res, url);
-    if (!r.ok) return null;
+    if (!r.ok) return r.betaAccessRequired ? { betaAccessRequired: true } : null;
 
     const item = r.json?.tracks?.items?.[0];
     if (!item?.uri) return null;
@@ -625,7 +675,13 @@ async function spotifyAddTracks(req, res, playlistId, uris) {
 }
 
 async function getSpotifyMeId(req, res) {
-    const { ok, me } = await spotifyMe(req, res);
+    req.__betaAccessRequired = false;
+    const { ok, me, betaAccessRequired } = await spotifyMe(req, res);
+    if (betaAccessRequired) {
+        req.__betaAccessRequired = true;
+        sendBetaAccessRequired(res);
+        return "";
+    }
     if (!ok || !me?.id) return "";
     return String(me.id);
 }
@@ -635,10 +691,17 @@ async function resolveUserSession(req, res) {
     let spotifyId = "";
     let premium = false;
     let displayName = "";
+    let betaAccessRequired = false;
 
     if (spotifyToken) {
         try {
             const meRes = await spotifyFetch(req, res, "https://api.spotify.com/v1/me");
+            if (meRes.betaAccessRequired) {
+                betaAccessRequired = true;
+                sendBetaAccessRequired(res);
+                return { spotifyToken: "", spotifyId: "", premium: false, spotifyProfileText: "", displayName: "", betaAccessRequired };
+            }
+
             if (meRes.ok && meRes.json?.id) {
                 spotifyId = String(meRes.json.id);
                 displayName = String(meRes.json.display_name || "");
@@ -649,9 +712,17 @@ async function resolveUserSession(req, res) {
         }
     }
 
-    const spotifyProfileText = await getSpotifyProfileText(req, res, spotifyToken);
+    let spotifyProfileText = "";
+    try {
+        spotifyProfileText = await getSpotifyProfileText(req, res, spotifyToken);
+    } catch (e) {
+        if (e?.betaAccessRequired || e?.code === "BETA_ACCESS_REQUIRED") {
+            betaAccessRequired = true;
+            sendBetaAccessRequired(res);
+        }
+    }
 
-    return { spotifyToken, spotifyId, premium, spotifyProfileText, displayName };
+    return { spotifyToken, spotifyId, premium, spotifyProfileText, displayName, betaAccessRequired };
 }
 
 /* -----------------------------
@@ -689,7 +760,10 @@ app.post("/api/billing/checkout", async (req, res) => {
         }
 
         const spotify_id = await getSpotifyMeId(req, res);
-        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify’a giriş yap." });
+        if (!spotify_id) {
+            if (req.__betaAccessRequired) return;
+            return res.status(401).json({ ok: false, error: "Önce Spotify’a giriş yap." });
+        }
 
         const base = getBaseUrl(req);
 
@@ -937,7 +1011,16 @@ app.get("/api/spotify/status", async (req, res) => {
             headers: { Authorization: `Bearer ${token}` },
         });
 
+        const data = await r.json().catch(() => ({}));
+
         if (r.status === 401) return res.json({ connected: false, reason: "expired_token" });
+
+        if (isSpotifyBetaAccessError(r.status, data)) {
+            clearCookie(res, req, "spotify_access_token");
+            clearCookie(res, req, "spotify_refresh_token");
+            clearCookie(res, req, "spotify_expires_at");
+            return sendBetaAccessRequired(res);
+        }
 
         if (r.status === 403) {
             clearCookie(res, req, "spotify_access_token");
@@ -948,7 +1031,7 @@ app.get("/api/spotify/status", async (req, res) => {
 
         if (!r.ok) return res.json({ connected: false, reason: "spotify_error", status: r.status });
 
-        const me = await r.json().catch(() => ({}));
+        const me = data;
 
         let premium = false;
         try { premium = await isPremium(me.id); } catch (_) { premium = false; }
@@ -986,6 +1069,13 @@ app.get("/api/me", async (req, res) => {
             }
         }
 
+        if (isSpotifyBetaAccessError(r.status, data)) {
+            clearCookie(res, req, "spotify_access_token");
+            clearCookie(res, req, "spotify_refresh_token");
+            clearCookie(res, req, "spotify_expires_at");
+            return sendBetaAccessRequired(res);
+        }
+
         if (!r.ok) return res.status(200).json({ ok: false, status: r.status, spotify_error: data });
 
         let premium = false;
@@ -1020,6 +1110,10 @@ app.get("/spotify/top", async (req, res) => {
         const tracksJson = await tracksRes.json().catch(() => ({}));
         const artistsJson = await artistsRes.json().catch(() => ({}));
 
+        if (isSpotifyBetaAccessError(tracksRes.status, tracksJson) || isSpotifyBetaAccessError(artistsRes.status, artistsJson)) {
+            return sendBetaAccessRequired(res);
+        }
+
         if (!tracksRes.ok) return res.status(500).json({ error: "Top tracks failed", details: tracksJson });
         if (!artistsRes.ok) return res.status(500).json({ error: "Top artists failed", details: artistsJson });
 
@@ -1048,6 +1142,10 @@ app.get("/debug/spotify", async (req, res) => {
             headers: { Authorization: `Bearer ${token}` },
         });
         const tracks = await tracksRes.json().catch(() => ({}));
+
+        if (isSpotifyBetaAccessError(meRes.status, me) || isSpotifyBetaAccessError(tracksRes.status, tracks)) {
+            return sendBetaAccessRequired(res);
+        }
 
         let premium = false;
         try {
@@ -1257,7 +1355,8 @@ app.post("/api/generate", async (req, res) => {
     }
 
     try {
-        const { spotifyId, premium, spotifyProfileText } = await resolveUserSession(req, res);
+        const { spotifyId, premium, spotifyProfileText, betaAccessRequired } = await resolveUserSession(req, res);
+        if (betaAccessRequired) return;
 
         // Count + premium/free limit
         const requestedCountRaw = Number(req.body?.count ?? 20);
@@ -1314,7 +1413,9 @@ app.post("/api/generate", async (req, res) => {
 
 app.post("/api/refresh", async (req, res) => {
     try {
-        const { spotifyId, premium, spotifyProfileText } = await resolveUserSession(req, res);
+        const { spotifyId, premium, spotifyProfileText, betaAccessRequired } = await resolveUserSession(req, res);
+
+        if (betaAccessRequired) return;
 
         if (!spotifyId) return res.status(401).json({ error: "Spotify not connected" });
         if (!premium) return res.status(403).json({ error: "Premium required" });
@@ -1369,7 +1470,10 @@ app.post("/api/feedback", async (req, res) => {
         }
 
         const spotify_id = await getSpotifyMeId(req, res);
-        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify ile giriş yap." });
+        if (!spotify_id) {
+            if (req.__betaAccessRequired) return;
+            return res.status(401).json({ ok: false, error: "Önce Spotify ile giriş yap." });
+        }
 
         const message = String(req.body?.message || "").trim();
         if (message.length < 5) return res.status(400).json({ ok: false, error: "Mesaj çok kısa." });
@@ -1383,6 +1487,32 @@ app.post("/api/feedback", async (req, res) => {
     }
 });
 
+app.post("/api/beta/request", async (req, res) => {
+    try {
+        if (!dbEnabled || !pool) {
+            return res.status(503).json({ ok: false, error: "Şu an beta talebi alınamıyor (DB devre dışı)." });
+        }
+
+        const email = String(req.body?.email || "").trim();
+        const note = normalizeStr(req.body?.note || "");
+
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRe.test(email)) {
+            return res.status(400).json({ ok: false, error: "Geçerli bir e-posta gir." });
+        }
+
+        if (note.length > 500) {
+            return res.status(400).json({ ok: false, error: "Not 500 karakteri aşmamalı." });
+        }
+
+        await createBetaRequest({ email, note });
+        return res.json({ ok: true });
+    } catch (e) {
+        console.error("beta request failed:", e);
+        return res.status(500).json({ ok: false, error: "Talep kaydedilemedi." });
+    }
+});
+
 /* -----------------------------
    Save playlist to Spotify
 ------------------------------ */
@@ -1392,6 +1522,7 @@ async function saveSpotifyPlaylist(req, res) {
         if (!token) return;
 
         const meInfo = await spotifyMe(req, res);
+        if (meInfo.betaAccessRequired) return sendBetaAccessRequired(res);
         if (!meInfo.ok) return res.status(401).json({ error: "Spotify /me failed" });
         const me = meInfo.me;
 
@@ -1426,6 +1557,7 @@ async function saveSpotifyPlaylist(req, res) {
         if (!tracks.length) return res.status(400).json({ error: "Missing tracks" });
 
         const created = await spotifyCreatePlaylist(req, res, me.id, title, description);
+        if (created.betaAccessRequired) return sendBetaAccessRequired(res);
         if (!created.ok) {
             console.error("create playlist failed:", created.json || created.text);
             return res.status(500).json({ error: "create playlist failed", details: created.json || created.text });
@@ -1442,12 +1574,14 @@ async function saveSpotifyPlaylist(req, res) {
 
             const q = `track:${song} artist:${artist}`;
             const hit = await spotifySearchTrack(req, res, q);
+            if (hit?.betaAccessRequired) return sendBetaAccessRequired(res);
             if (hit?.uri) uris.push(hit.uri);
         }
 
         if (!uris.length) return res.status(400).json({ error: "No Spotify matches found for provided tracks" });
 
         const addRes = await spotifyAddTracks(req, res, playlistId, uris);
+        if (addRes.betaAccessRequired) return sendBetaAccessRequired(res);
         if (!addRes.ok) {
             console.error("add tracks failed:", addRes.json || addRes.text);
             return res.status(500).json({ error: "add tracks failed", details: addRes.json || addRes.text });
@@ -1513,7 +1647,10 @@ app.post("/api/admin/codes/create", async (req, res) => {
 app.post("/api/redeem", async (req, res) => {
     try {
         const spotify_id = await getSpotifyMeId(req, res);
-        if (!spotify_id) return res.status(401).json({ ok: false, error: "Once Spotify’a giris yap." });
+        if (!spotify_id) {
+            if (req.__betaAccessRequired) return;
+            return res.status(401).json({ ok: false, error: "Once Spotify’a giris yap." });
+        }
 
         const code = String(req.body?.code || "");
         const result = await redeemCode(code, spotify_id);
@@ -1522,6 +1659,26 @@ app.post("/api/redeem", async (req, res) => {
         return res.json({ ok: true, premium_until: result.premium_until, days_added: result.days_added });
     } catch (e) {
         console.error(e);
+        return res.status(500).json({ ok: false, error: String(e?.message || e) });
+    }
+});
+
+app.post("/api/admin/beta/:id/status", async (req, res) => {
+    try {
+        if (!requireAdmin(req, res)) return;
+        if (!dbEnabled || !pool) return res.status(503).json({ ok: false, error: "DB_NOT_CONFIGURED" });
+
+        const id = Number(req.params.id || 0);
+        const status = String(req.body?.status || "approved").trim().toLowerCase();
+        if (!id) return res.status(400).json({ ok: false, error: "Geçersiz ID" });
+        if (!["approved", "denied", "pending"].includes(status)) {
+            return res.status(400).json({ ok: false, error: "Geçersiz durum" });
+        }
+
+        const ok = await updateBetaRequestStatus(id, status);
+        return res.json({ ok });
+    } catch (e) {
+        console.error("beta status update failed", e);
         return res.status(500).json({ ok: false, error: String(e?.message || e) });
     }
 });
@@ -1546,6 +1703,8 @@ app.get("/admin", async (req, res) => {
         const users = await getUsers(200);
         let feedback = [];
         let feedbackError = "";
+        let betaRequests = [];
+        let betaError = "";
 
         if (dbEnabled && pool) {
             try {
@@ -1554,8 +1713,16 @@ app.get("/admin", async (req, res) => {
                 console.error("feedback fetch failed", e);
                 feedbackError = "Geri bildirimler çekilemedi.";
             }
+
+            try {
+                betaRequests = await listBetaRequests(200, "pending");
+            } catch (e) {
+                console.error("beta requests fetch failed", e);
+                betaError = "Beta talepleri çekilemedi.";
+            }
         } else {
             feedbackError = "DB devre dışı (feedback yok).";
+            betaError = "DB devre dışı (beta talepleri yok).";
         }
 
         const row = (u) => `
@@ -1576,6 +1743,15 @@ app.get("/admin", async (req, res) => {
         <td>${escapeHtml(f.spotify_id || "")}</td>
         <td>${escapeHtml(f.message || "")}</td>
         <td>${f.created_at ? new Date(f.created_at).toLocaleString() : ""}</td>
+      </tr>
+    `;
+
+        const betaRow = (b) => `
+      <tr>
+        <td>${escapeHtml(b.email || "")}</td>
+        <td>${escapeHtml(b.note || "")}</td>
+        <td>${b.created_at ? new Date(b.created_at).toLocaleString() : ""}</td>
+        <td>${escapeHtml(b.status || "pending")}</td>
       </tr>
     `;
 
@@ -1601,6 +1777,16 @@ app.get("/admin", async (req, res) => {
     <div class="card"><b>Active 24h</b><div>${stats.active24h ?? 0}</div></div>
     <div class="card"><b>Total events</b><div>${stats.totalEvents ?? 0}</div></div>
   </div>
+
+  <h2>Beta Erişim Talepleri</h2>
+  ${betaError
+        ? `<div class="card">${escapeHtml(betaError)}</div>`
+        : `<table>
+        <thead>
+          <tr><th>Email</th><th>Not</th><th>Oluşturulma</th><th>Durum</th></tr>
+        </thead>
+        <tbody>${(Array.isArray(betaRequests) ? betaRequests : []).map(betaRow).join("")}</tbody>
+      </table>`}
 
   <h2>Kullanıcı Geri Bildirimleri</h2>
   ${feedbackError
