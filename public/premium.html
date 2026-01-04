@@ -99,6 +99,54 @@
 
     <div id="statusMsg" class="muted" style="margin:10px 0 16px"></div>
 
+    <div id="successBox" class="card" style="display:none; border-color:rgba(34,197,94,.5)">
+        <h3>Premium aktif 🎉</h3>
+        <p class="muted">Akışı bozmayan, niyet odaklı playlistler ve tek tık alternatifler açıldı.</p>
+        <ul>
+            <li>Daha akışkan energy flow</li>
+            <li>Mood + aktivite niyetiyle daha isabetli eşleşme</li>
+            <li>Refresh ile aynı vibe’da yeni liste</li>
+        </ul>
+        <div style="margin-top:12px">
+            <a class="btn white" href="/">Playlist oluşturmaya başla</a>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+        <h2>Daha Az Rastgele. Daha Çok ‘Beni Anladı.’</h2>
+        <p class="muted">Niyetini (mood + aktivite + tempo) okuyup enerji akışını koruyan playlistler. Akış bozulunca tek tıkta yenile.</p>
+        <ul>
+            <li>Deeper mood & intent understanding</li>
+            <li>Smooth energy flow (no abrupt jumps)</li>
+            <li>One-click alternatives (Refresh)</li>
+            <li>More control, not just more limits</li>
+        </ul>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+        <h3>Free vs Premium</h3>
+        <div class="grid" style="margin-top:10px; gap:10px">
+            <div class="card" style="background:rgba(255,255,255,.02)">
+                <h4>Free</h4>
+                <ul>
+                    <li>1 playlist/day</li>
+                    <li>Max 30 tracks</li>
+                    <li>Basic mood matching</li>
+                </ul>
+            </div>
+            <div class="card" style="border-color:rgba(34,197,94,.4); background:rgba(34,197,94,.05)">
+                <h4>Premium (Early Access)</h4>
+                <ul>
+                    <li>10 playlists/day</li>
+                    <li>Max 120 tracks</li>
+                    <li>Deeper intent analysis</li>
+                    <li>Balanced energy flow</li>
+                    <li>One-click alternative generation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <div class="grid">
         <div class="card">
             <h2>Free</h2>
@@ -129,26 +177,32 @@
     </div>
 
     <div class="card" style="margin-top:14px">
-        <h3>SSS</h3>
-        <div class="card" style="margin-top:14px">
-            <h3>Hediye Kodunu Kullan</h3>
-            <p class="muted">Bir premium kodun varsa buraya gir. (Önce Spotify’a bağlanman lazım.)</p>
+        <h3>Hediye Kodu Kullan</h3>
+        <p class="muted">Bir Premium kodun varsa buradan aktive edebilirsin.</p>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
-                <input id="redeemCode" placeholder="Örn: AB3K7Z-123456"
-                       style="flex:1; min-width:240px; padding:12px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:#fff" />
-                <button class="btn white" id="redeemBtn">Kodu Kullan</button>
-            </div>
-
-            <div id="redeemMsg" class="muted" style="margin-top:10px"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
+            <input id="redeemCode" placeholder="Örn: AB3K7Z-123456"
+                   style="flex:1; min-width:240px; padding:12px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:#fff" />
+            <button class="btn white" id="redeemBtn">Kodu Kullan</button>
         </div>
+
+        <div id="redeemMsg" class="muted" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+        <h3>SSS</h3>
+        <p class="muted"><b>Premium nasıl çalışıyor?</b> Stripe Checkout ile tek seferlik ödeme yaparsın, hesabın 30 gün premium olur.</p>
+        <p class="muted"><b>Spotify’a ekleme neden bazen eksik?</b> Bazi sarkilar Spotify search’te eslesmeyebilir. Yakinda eslesme kalitesini artiracagiz.</p>
+    </div>
 
         <script>
             const statusMsg = document.getElementById("statusMsg");
+            const successBox = document.getElementById("successBox");
 
             const params = new URLSearchParams(location.search);
             if (params.get("success") === "1") {
-                statusMsg.textContent = "Premium aktif ✅";
+                statusMsg.textContent = "Premium aktif 🎉";
+                if (successBox) successBox.style.display = "block";
             } else if (params.get("canceled") === "1") {
                 statusMsg.textContent = "Ödeme iptal edildi.";
             }

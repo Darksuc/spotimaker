@@ -22,6 +22,9 @@ import {
     countSavedToday,
     createRedeemCode,
     redeemCode,
+    saveFeedback,
+    getFeedbackMessages,
+    dbEnabled,
 } from "./db.mjs";
 
 // Render/IPv6 timeout sorunlarına karşı
@@ -1359,6 +1362,27 @@ app.post("/api/refresh", async (req, res) => {
     }
 });
 
+app.post("/api/feedback", async (req, res) => {
+    try {
+        if (!dbEnabled || !pool) {
+            return res.status(503).json({ ok: false, error: "Geri bildirim şu an kaydedilemiyor (DB yok)." });
+        }
+
+        const spotify_id = await getSpotifyMeId(req, res);
+        if (!spotify_id) return res.status(401).json({ ok: false, error: "Önce Spotify ile giriş yap." });
+
+        const message = String(req.body?.message || "").trim();
+        if (message.length < 5) return res.status(400).json({ ok: false, error: "Mesaj çok kısa." });
+        if (message.length > 2000) return res.status(400).json({ ok: false, error: "Mesaj 2000 karakteri aşmamalı." });
+
+        await saveFeedback(spotify_id, message);
+        return res.json({ ok: true });
+    } catch (e) {
+        console.error("feedback failed:", e);
+        return res.status(500).json({ ok: false, error: "Geri bildirim kaydedilemedi. Sonra tekrar dene." });
+    }
+});
+
 /* -----------------------------
    Save playlist to Spotify
 ------------------------------ */
@@ -1520,6 +1544,19 @@ app.get("/admin", async (req, res) => {
 
         const stats = await getStats();
         const users = await getUsers(200);
+        let feedback = [];
+        let feedbackError = "";
+
+        if (dbEnabled && pool) {
+            try {
+                feedback = await getFeedbackMessages(200);
+            } catch (e) {
+                console.error("feedback fetch failed", e);
+                feedbackError = "Geri bildirimler çekilemedi.";
+            }
+        } else {
+            feedbackError = "DB devre dışı (feedback yok).";
+        }
 
         const row = (u) => `
       <tr>
@@ -1530,6 +1567,15 @@ app.get("/admin", async (req, res) => {
         <td style="text-align:right">${Number(u.playlists_created || 0)}</td>
         <td style="text-align:right">${Number(u.playlists_saved || 0)}</td>
         <td style="text-align:right">${Number(u.logins || 0)}</td>
+      </tr>
+    `;
+
+        const feedbackRow = (f) => `
+      <tr>
+        <td>${escapeHtml(f.display_name || "(isim yok)")}</td>
+        <td>${escapeHtml(f.spotify_id || "")}</td>
+        <td>${escapeHtml(f.message || "")}</td>
+        <td>${f.created_at ? new Date(f.created_at).toLocaleString() : ""}</td>
       </tr>
     `;
 
@@ -1555,6 +1601,16 @@ app.get("/admin", async (req, res) => {
     <div class="card"><b>Active 24h</b><div>${stats.active24h ?? 0}</div></div>
     <div class="card"><b>Total events</b><div>${stats.totalEvents ?? 0}</div></div>
   </div>
+
+  <h2>Kullanıcı Geri Bildirimleri</h2>
+  ${feedbackError
+        ? `<div class="card">${escapeHtml(feedbackError)}</div>`
+        : `<table>
+        <thead>
+          <tr><th>İsim</th><th>Spotify ID</th><th>Mesaj</th><th>Zaman</th></tr>
+        </thead>
+        <tbody>${(Array.isArray(feedback) ? feedback : []).map(feedbackRow).join("")}</tbody>
+      </table>`}
 
   <h2>Redeem Code Generator</h2>
   <div class="card" style="max-width:520px">
