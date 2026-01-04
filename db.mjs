@@ -54,6 +54,13 @@ export async function initDb() {
     used_count int not null default 0,
     note text not null default ''
   );
+
+  create table if not exists feedback_messages (
+    id bigserial primary key,
+    spotify_id text not null references users(spotify_id) on delete cascade,
+    message text not null,
+    created_at bigint not null
+  );
   `;
     await pool.query(sql);
 }
@@ -245,6 +252,36 @@ export async function getStats() {
         totalEvents,
         active24h: a.rows[0]?.n || 0,
     };
+}
+
+// --- FEEDBACK ---
+export async function saveFeedback(spotify_id, message) {
+    await ensureDbReady();
+    await ensureUserExists(String(spotify_id));
+
+    const ts = now();
+    await pool.query(
+        `insert into feedback_messages (spotify_id, message, created_at) values ($1,$2,$3)`,
+        [String(spotify_id), String(message || ""), ts]
+    );
+
+    return { ok: true, created_at: ts };
+}
+
+export async function getFeedbackMessages(limit = 200) {
+    await ensureDbReady();
+    const lim = Math.max(1, Math.min(500, Number(limit) || 200));
+
+    const r = await pool.query(
+        `select f.id, f.spotify_id, f.message, f.created_at, u.display_name
+         from feedback_messages f
+         left join users u on u.spotify_id = f.spotify_id
+         order by f.created_at desc
+         limit $1`,
+        [lim]
+    );
+
+    return r.rows;
 }
 
 // MVP: son 3 günü çekip JS'te sayıyoruz (küçük kullanımda yeterli, stabil)

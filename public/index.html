@@ -404,6 +404,57 @@
             color: rgba(255,255,255,.82);
         }
 
+        .compare-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .compare-col {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,.03);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+            z-index: 200;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 520px;
+            background: rgba(18,18,26,.95);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.35);
+        }
+
+        .modal-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .modal-close {
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            border-radius: 10px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
         @media (max-width:560px) {
             .h1 {
                 font-size: 24px;
@@ -491,6 +542,41 @@
                 </div>
             </div>
 
+            <div class="card" style="margin-top:14px">
+                <h2 class="cardTitle">Daha Az Rastgele. Daha Çok ‘Beni Anladı.’</h2>
+                <p class="cardDesc">Mood + aktivite niyetini okuyup akışı bozmadan ilerleyen playlistler. Enerji sıçraması olursa tek tıkta yeni alternatif al.</p>
+                <ul>
+                    <li>Deeper mood & intent understanding</li>
+                    <li>Smooth energy flow (no abrupt jumps)</li>
+                    <li>One-click alternatives (Refresh)</li>
+                    <li>More control, not just more limits</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3 class="cardTitle">Free vs Premium</h3>
+                <div class="compare-grid">
+                    <div class="compare-col">
+                        <h4>Free</h4>
+                        <ul>
+                            <li>1 playlist/day</li>
+                            <li>Max 30 tracks</li>
+                            <li>Basic mood matching</li>
+                        </ul>
+                    </div>
+                    <div class="compare-col" style="border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.06)">
+                        <h4>Premium (Early Access)</h4>
+                        <ul>
+                            <li>10 playlists/day</li>
+                            <li>Max 120 tracks</li>
+                            <li>Deeper intent analysis</li>
+                            <li>Balanced energy flow</li>
+                            <li>One-click alternative generation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <div id="loadingWrap" class="loadingWrap">
                 <div class="loadingTitle" id="loadingTitle">Playlist hazırlanıyor...</div>
                 <div class="barOuter"><div id="loadingBar" class="barInner"></div></div>
@@ -503,8 +589,27 @@
             </div>
             <div id="refreshStatus" class="hint" style="display:none; margin-top:4px;">Alternatif hazırlanıyor…</div>
 
+            <div class="row" style="margin-top:10px;">
+                <button id="feedbackOpenBtn" class="ghost-btn" type="button">Geri Bildirim</button>
+            </div>
+
             <div id="out"></div>
         </main>
+    </div>
+
+    <div id="feedbackModal" class="modal-backdrop" role="dialog" aria-modal="true">
+        <div class="modal-card">
+            <div class="modal-top">
+                <h3 style="margin:0;">Geri Bildirim</h3>
+                <button id="feedbackCloseBtn" class="modal-close" type="button">Kapat</button>
+            </div>
+            <p class="cardDesc" style="margin:8px 0 10px;">Kısa bir not bırak; ürün içinden direkt admin paneline düşsün.</p>
+            <textarea id="feedbackMessage" placeholder="Beğendiğin/eksik bulduğun noktalar..." style="min-height:120px;"></textarea>
+            <div class="row" style="margin-top:10px;">
+                <button id="feedbackSubmit" class="primary-btn" type="button">Gönder</button>
+            </div>
+            <div id="feedbackStatus" class="hint"></div>
+        </div>
     </div>
 
     <script>
@@ -532,6 +637,13 @@
             t.style.display = "block";
             clearTimeout(window.__toastTimer);
             window.__toastTimer = setTimeout(() => (t.style.display = "none"), 2600);
+        }
+
+        function toggleFeedbackModal(show) {
+            if (!feedbackModal) return;
+            feedbackModal.style.display = show ? "flex" : "none";
+            if (show && feedbackMessage) feedbackMessage.focus();
+            if (!show && feedbackStatus) feedbackStatus.textContent = "";
         }
 
         function escapeHtml(s) {
@@ -573,6 +685,13 @@
         const loadingTitle = document.getElementById("loadingTitle");
         const loadingSub = document.getElementById("loadingSub");
 
+        const feedbackModal = document.getElementById("feedbackModal");
+        const feedbackOpenBtn = document.getElementById("feedbackOpenBtn");
+        const feedbackCloseBtn = document.getElementById("feedbackCloseBtn");
+        const feedbackMessage = document.getElementById("feedbackMessage");
+        const feedbackSubmit = document.getElementById("feedbackSubmit");
+        const feedbackStatus = document.getElementById("feedbackStatus");
+
         // ---------- premium/free UI ----------
         function applyPlanUI() {
             // slider limit
@@ -610,7 +729,7 @@
             // Free
             if (v > 40) {
                 countHint.innerHTML =
-                    "⚠️ <b>Free plan limiti:</b> 40 şarkı. <b>" + v + "</b> seçtin ama <b>40</b> olarak kaydedilecek.";
+                    "⚠️ Bu noktadan sonrası Premium kalitesi.<br/>Daha akışkan ve isabetli listeler için Premium’a geç.";
                 countHint.style.color = "rgba(255,255,255,.95)";
             } else {
                 countHint.innerHTML =
@@ -877,10 +996,10 @@
                     <div class="mini-card" id="inlinePremiumUpsell">
                         <h4>Premium Early Access</h4>
                         <ul>
-                            <li>🎯 Niyetini anlar: mood + aktivite + tempo</li>
-                            <li>🌊 Baştan sona akış: enerji sıçraması yok</li>
-                            <li>🔁 1 tık alternatif: aynı vibe, farklı liste</li>
-                            <li>🚫 Tekrarsız: aynı artist üst üste gelmez</li>
+                            <li>🎯 Deeper mood & intent understanding</li>
+                            <li>🌊 Smooth energy flow, no sert sıçramalar</li>
+                            <li>🔁 One-click alternatif (Refresh)</li>
+                            <li>⚙️ Daha çok kontrol, daha az limit</li>
                         </ul>
                         <button class="ghost-btn" onclick="window.location.href='/premium.html'">Premium’a geç (₺29.90)</button>
                         <div class="hint" style="margin-top:6px;">Erken erişim fiyatı. İstediğin zaman iptal.</div>
@@ -896,7 +1015,7 @@
         btn.onclick = async () => {
             const requested = Number(countInput?.value || 20);
             if (!__isPremium && requested > 40) {
-                showToast(`Free plan: ${requested} seçtin → 40 şarkıya düşürülecek. Premium ile 200'e çık.`);
+                showToast("Bu noktadan sonrası Premium kalitesi.\nDaha akışkan ve isabetli listeler için Premium’a geç.");
             }
 
             if (btn.dataset.loading === "1") return;
@@ -985,6 +1104,47 @@
                 refreshStatus.dataset.loading = "0";
             }
         };
+
+        // ---------- feedback ----------
+        feedbackOpenBtn?.addEventListener("click", () => toggleFeedbackModal(true));
+        feedbackCloseBtn?.addEventListener("click", () => toggleFeedbackModal(false));
+        feedbackModal?.addEventListener("click", (e) => {
+            if (e.target === feedbackModal) toggleFeedbackModal(false);
+        });
+
+        feedbackSubmit?.addEventListener("click", async () => {
+            if (!feedbackMessage) return;
+            const msg = String(feedbackMessage.value || "").trim();
+            if (!msg) {
+                feedbackStatus.textContent = "Mesaj boş olamaz.";
+                return;
+            }
+
+            feedbackSubmit.disabled = true;
+            feedbackSubmit.textContent = "Gönderiliyor...";
+            feedbackStatus.textContent = "";
+
+            try {
+                const resp = await fetch("/api/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ message: msg })
+                });
+
+                const j = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(j.error || "Geri bildirim kaydedilemedi.");
+
+                feedbackStatus.textContent = "Teşekkürler! Mesajın ulaştı.";
+                feedbackMessage.value = "";
+                setTimeout(() => toggleFeedbackModal(false), 800);
+            } catch (e) {
+                feedbackStatus.textContent = String(e?.message || e);
+            } finally {
+                feedbackSubmit.disabled = false;
+                feedbackSubmit.textContent = "Gönder";
+            }
+        });
 
         // ---------- init ----------
         window.addEventListener("load", async () => {
