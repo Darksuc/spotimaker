@@ -34,16 +34,15 @@
 
         .page {
             max-width: 1100px;
-            margin: 34px auto 70px;
-            padding: 0 20px;
+            margin: 18px auto 100px;
+            padding: 0 16px 120px;
         }
 
         .topbar {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 18px;
-            padding: 18px 18px;
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px;
             border: 1px solid var(--line);
             border-radius: 18px;
             background: rgba(18,18,26,.78);
@@ -51,7 +50,53 @@
             position: relative;
             z-index: 50;
             animation: fadeUp 0.6s ease-out both;
-            flex-wrap: wrap;
+        }
+
+        .topbar-mobile {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+        }
+
+        .mobile-brand .brand-name {
+            font-size: 18px;
+        }
+
+        .mobile-brand .brand-sub {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .hamburger {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.08);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform .16s ease, box-shadow .18s ease;
+        }
+
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(74,222,128,0.75);
+            outline-offset: 2px;
+        }
+
+        .hamburger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(0,0,0,.25);
         }
 
         .brand {
@@ -322,6 +367,63 @@
             margin-top: 16px;
         }
 
+        .count-control {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: rgba(255,255,255,.04);
+            margin-top: 16px;
+        }
+
+        .count-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .count-stepper {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,.06);
+            padding: 6px 10px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+        }
+
+        .count-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.08);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .count-btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .count-value {
+            min-width: 54px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .count-helper {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
         .primary-btn {
             flex: 1 1 240px;
             padding: 14px 18px;
@@ -334,6 +436,24 @@
             background: linear-gradient(135deg, rgba(163,230,53,0.9), rgba(74,222,128,0.95), rgba(34,197,94,0.95));
             color: #0c1a0f;
             box-shadow: 0 18px 40px rgba(34,197,94,0.3);
+        }
+
+        .sticky-cta {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 12px;
+            padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(11,11,15,0) 0%, rgba(11,11,15,0.88) 18%, rgba(11,11,15,0.95) 44%);
+            z-index: 90;
+            margin-top: 18px;
+        }
+
+        .sticky-cta .primary-btn {
+            width: 100%;
+            font-size: 17px;
+            padding: 14px 16px;
+            border-radius: 14px;
         }
 
             .primary-btn:disabled {
@@ -372,6 +492,10 @@
             border-radius: 18px;
             background: rgba(18,18,26,.75);
             box-shadow: 0 12px 32px rgba(0,0,0,.24);
+        }
+
+        .count-desktop {
+            display: none;
         }
 
         .slider-top {
@@ -520,6 +644,60 @@
             color: rgba(255,255,255,.82);
         }
 
+        .mobile-menu-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.6);
+            display: none;
+            align-items: flex-start;
+            justify-content: flex-end;
+            z-index: 120;
+            padding: 14px;
+        }
+
+        .mobile-menu-backdrop.show {
+            display: flex;
+        }
+
+        .mobile-menu {
+            width: min(360px, 90vw);
+            background: rgba(18,18,26,.96);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 20px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(12px);
+        }
+
+        .mobile-menu h3 {
+            margin: 0 0 10px;
+        }
+
+        .menu-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .menu-links .btn {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .menu-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .menu-meta {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
         .compare-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -596,40 +774,37 @@
             to { opacity: 1; }
         }
 
-        @media (max-width:560px) {
-            .h1 {
-                font-size: 24px;
+        @media (max-width: 767px) {
+            .brand,
+            .nav,
+            .beta-note,
+            .topbar > .beta-subtext,
+            .slider-wrap,
+            #premiumCard {
+                display: none;
             }
 
-            .topbar {
-                padding: 12px;
-                flex-direction: column;
-                align-items: flex-start;
+            .topbar-mobile {
+                display: flex;
             }
 
             .main-card {
                 padding: 18px;
+                margin-top: 12px;
             }
 
-            .primary-btn {
-                width: 100%;
+            .h1 {
+                font-size: 28px;
             }
 
-            .nav {
-                width: 100%;
-                justify-content: flex-start;
+            .p {
+                font-size: 15px;
             }
 
-            .navbtn, .navlink {
-                width: 100%;
-                text-align: center;
-            }
-        }
-
-        @media (max-width:640px) {
             .hero {
                 flex-direction: column;
                 align-items: flex-start;
+                gap: 12px;
             }
 
             .row {
@@ -642,12 +817,69 @@
                 text-align: center;
             }
 
+            textarea {
+                min-height: 180px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .page {
+                margin: 34px auto 70px;
+                padding: 0 20px;
+            }
+
+            .topbar {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+                padding: 18px 18px;
+                flex-wrap: wrap;
+            }
+
+            .topbar-mobile {
+                display: none;
+            }
+
+            .nav {
+                display: flex;
+            }
+
+            .brand {
+                display: flex;
+            }
+
+            .beta-note,
+            .topbar > .beta-subtext,
+            #premiumCard {
+                display: block;
+            }
+
             .slider-wrap {
-                padding: 12px;
+                display: block;
             }
 
             .main-card {
-                margin-top: 16px;
+                padding: 28px;
+                margin-top: 28px;
+            }
+
+            .count-control {
+                display: none;
+            }
+
+            .count-desktop {
+                display: block;
+            }
+
+            .sticky-cta {
+                position: static;
+                padding: 0;
+                background: transparent;
+            }
+
+            .sticky-cta .primary-btn {
+                width: auto;
             }
         }
     </style>
@@ -656,6 +888,22 @@
 <body>
     <div class="page">
         <header class="topbar">
+            <div class="topbar-mobile">
+                <button id="menuToggle" class="hamburger" type="button" aria-label="Menüyü aç">
+                    &#9776;
+                </button>
+                <div class="mobile-brand" aria-label="Spotimaker">
+                    <div class="brand-name">Spotimaker</div>
+                    <div class="brand-sub">Mood + vibe</div>
+                </div>
+                <div class="logo" aria-hidden="true" style="flex:0 0 auto;">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                        <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </div>
+            </div>
             <div class="brand">
                 <div class="logo" aria-hidden="true">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -670,9 +918,9 @@
                     <div class="brand-sub">Ruh haline göre playlist.</div>
 
                     <div class="badges">
-                        <div id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
-                        <span id="planBadge" class="pill">FREE PLAN</span>
-                        <span id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
+                        <div data-spotify-status id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
+                        <span data-plan-badge id="planBadge" class="pill">FREE PLAN</span>
+                        <span data-premium-badge id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
                         <span class="pill beta-pill">Sınırlı Beta</span>
                     </div>
                     <div class="beta-note">
@@ -685,20 +933,41 @@
                 <button id="aboutOpen" class="ghost-btn btn" type="button">Nedir?</button>
                 <a href="/premium.html" class="navlink btn" style="padding:10px 14px;">Premium</a>
                 <a href="/beta.html" class="navlink btn" style="padding:10px 14px;">Beta erişimi talep et</a>
-                <a id="spotifyLink" href="/login" class="navbtn btn cta" target="_self">Spotify bağla</a>
-                <a id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
+                <a data-spotify-link id="spotifyLink" href="/login" class="navbtn btn cta" target="_self">Spotify bağla</a>
+                <a data-logout-link id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
             </nav>
             <div class="beta-subtext" style="margin-top:6px; text-align:right; flex:1 1 100%;">
                 Sınırlı beta: erişim yalnızca onaylı hesaplar içindir.
             </div>
         </header>
 
+        <div id="mobileMenu" class="mobile-menu-backdrop" role="dialog" aria-modal="true">
+            <div class="mobile-menu">
+                <div class="menu-row">
+                    <h3 style="margin:0;">Spotimaker</h3>
+                    <button id="menuClose" class="modal-close" type="button">Kapat</button>
+                </div>
+                <div class="badges" style="margin-top:8px; gap:10px;">
+                    <div data-spotify-status class="spotify-badge">Spotify bağlı değil</div>
+                    <span data-plan-badge class="pill">FREE PLAN</span>
+                    <span data-premium-badge class="pill gold" style="display:none;">PREMIUM</span>
+                    <span class="pill beta-pill">Sınırlı Beta</span>
+                </div>
+                <div class="menu-meta">Spotify: <span data-spotify-status-text>Spotify bağlı değil</span></div>
+                <div class="menu-links">
+                    <a href="/premium.html" class="btn">Premium</a>
+                    <a href="/beta.html" class="btn">Beta süreci</a>
+                    <a data-spotify-link href="/login" class="btn">Hesap</a>
+                    <a data-logout-link href="/logout" class="btn" style="display:none;">Çıkış yap</a>
+                </div>
+            </div>
+        </div>
+
         <main class="main-card">
             <div class="hero">
                 <div>
-                    <div class="pill" style="margin:0 0 10px 0; padding:6px 14px; font-size:12px;">Mood + vibe odaklı liste</div>
                     <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
-                    <p class="p">Mood + ortam + his yeter. İstersen playlisti Spotify hesabına tek tıkla eklersin.</p>
+                    <p class="p">Mood + ortam + his yeter.</p>
                     <div class="hint" style="opacity:.85;">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
                 </div>
             </div>
@@ -710,12 +979,19 @@
 
             <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
 
-            <div class="row">
-                <button id="btn" class="primary-btn btn cta" style="flex:1 1 280px; font-size:18px;">Playlist oluştur</button>
+            <div class="count-control" aria-label="Şarkı sayısı">
+                <div class="count-label">
+                    <span class="muted" style="font-size:13px;">Şarkı sayısı</span>
+                    <span class="count-helper">20–200</span>
+                </div>
+                <div class="count-stepper" aria-live="polite">
+                    <button id="countMinus" class="count-btn" type="button" aria-label="Şarkı sayısını azalt">−</button>
+                    <div id="countDisplay" class="count-value">20</div>
+                    <button id="countPlus" class="count-btn" type="button" aria-label="Şarkı sayısını artır">+</button>
+                </div>
             </div>
 
-
-            <div class="slider-wrap">
+            <div class="slider-wrap count-desktop">
                 <div class="slider-top">
                     <div>
                         <div class="muted" style="font-size:13px;">Şarkı sayısı</div>
@@ -724,16 +1000,20 @@
                     <div style="font-weight:900; font-size:20px; letter-spacing:-.2px;"> <span id="countVal">20</span> şarkı</div>
                 </div>
 
-                <input id="count" type="range" min="20" max="40" step="10" value="20" style="margin:6px 0 2px;" />
+                <input id="count" type="range" min="20" max="40" step="5" value="20" style="margin:6px 0 2px;" />
                 <div id="countHint" style="margin-top:8px; opacity:.9; font-size:12px;"></div>
 
                 <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
-                    <a href="/premium.html" id="goPremium" class="btn" style="font-size:13px; padding:9px 12px;">Premium’a geç →</a>
+                    <a href="/premium.html" data-go-premium id="goPremium" class="btn" style="font-size:13px; padding:9px 12px;">Premium’a geç →</a>
                     <div class="slider-note">Free: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.</div>
                 </div>
             </div>
 
-            <div class="card" style="margin-top:14px">
+            <div class="sticky-cta">
+                <button id="btn" class="primary-btn btn cta" style="flex:1 1 280px; font-size:18px;">Playlist oluştur</button>
+            </div>
+
+            <div id="premiumCard" class="card" style="margin-top:14px">
                 <h3 class="cardTitle" style="margin:0 0 10px 0; letter-spacing:-.1px;">Premium’u keşfet</h3>
                 <p class="cardDesc" style="margin-bottom:12px;">Premium: daha iyi eşleşme, daha akışkan enerji ve tek tıkla alternatifler.</p>
                 <ul style="margin:0 0 12px 18px; color:var(--muted); line-height:1.5;">
@@ -877,13 +1157,56 @@ Spotimaker neyi farklı yapar?
         const countHint = document.getElementById("countHint");
         const countVal = document.getElementById("countVal");
         const rangeHint = document.getElementById("rangeHint");
+        const countMinus = document.getElementById("countMinus");
+        const countPlus = document.getElementById("countPlus");
+        const countDisplay = document.getElementById("countDisplay");
+        const countHelper = document.querySelector(".count-helper");
 
-        const spotifyStatus = document.getElementById("spotifyStatus");
-        const spotifyLink = document.getElementById("spotifyLink");
-        const logoutLink = document.getElementById("logoutLink");
-        const planBadge = document.getElementById("planBadge");
-        const premiumBadge = document.getElementById("premiumBadge");
-        const goPremium = document.getElementById("goPremium");
+        const menuToggle = document.getElementById("menuToggle");
+        const menuClose = document.getElementById("menuClose");
+        const mobileMenu = document.getElementById("mobileMenu");
+
+        const COUNT_MIN = 20;
+        const COUNT_STEP = 5;
+        const COUNT_MAX_PREMIUM = 200;
+        const COUNT_MAX_FREE = 40;
+
+        function forEachNode(list, cb) {
+            if (!list) return;
+            list.forEach?.(cb);
+        }
+
+        function getMaxCount() {
+            return __isPremium ? COUNT_MAX_PREMIUM : COUNT_MAX_FREE;
+        }
+
+        function clampCount(value) {
+            const max = getMaxCount();
+            return Math.min(max, Math.max(COUNT_MIN, value));
+        }
+
+        function syncCountDisplays(val) {
+            if (countInput) countInput.value = String(val);
+            if (countVal) countVal.textContent = String(val);
+            if (countDisplay) countDisplay.textContent = String(val);
+            if (countMinus) countMinus.disabled = val <= COUNT_MIN;
+            if (countPlus) countPlus.disabled = val >= getMaxCount();
+        }
+
+        function updateGenerateButtonState() {
+            if (!btn) return;
+            const hasText = Boolean((text?.value || "").trim());
+            const isLoading = btn.dataset.loading === "1";
+            btn.disabled = betaBlocked || !hasText || isLoading;
+        }
+
+        const spotifyStatusEls = document.querySelectorAll("[data-spotify-status]");
+        const spotifyStatusTextEls = document.querySelectorAll("[data-spotify-status-text]");
+        const spotifyLinkEls = document.querySelectorAll("[data-spotify-link]");
+        const logoutLinkEls = document.querySelectorAll("[data-logout-link]");
+        const planBadgeEls = document.querySelectorAll("[data-plan-badge]");
+        const premiumBadgeEls = document.querySelectorAll("[data-premium-badge]");
+        const goPremiumEls = document.querySelectorAll("[data-go-premium]");
 
         const loadingWrap = document.getElementById("loadingWrap");
         const loadingBar = document.getElementById("loadingBar");
@@ -936,6 +1259,7 @@ Spotimaker neyi farklı yapar?
                 btn.disabled = true;
                 btn.textContent = "Beta erişimi gerekli";
                 btn.setAttribute("aria-disabled", "true");
+                updateGenerateButtonState();
             }
             if (refreshBtn) {
                 refreshBtn.disabled = true;
@@ -952,21 +1276,28 @@ Spotimaker neyi farklı yapar?
 
         // ---------- premium/free UI ----------
         function applyPlanUI() {
-            // slider limit
-            const max = __isPremium ? 200 : 40;
+            const max = getMaxCount();
             if (countInput) {
                 countInput.max = String(max);
-                // eğer premium değilken 40 üstündeyse kırp
-                if (!__isPremium && Number(countInput.value || 20) > 40) countInput.value = "40";
+                const clamped = clampCount(Number(countInput.value || COUNT_MIN));
+                countInput.value = String(clamped);
             }
 
             if (rangeHint) rangeHint.textContent = __isPremium ? "20 - 200" : "20 - 40";
+            if (countHelper) countHelper.textContent = __isPremium ? "20–200" : "20–40";
 
-            if (planBadge) planBadge.textContent = __isPremium ? "PREMIUM PLAN" : "FREE PLAN";
-            if (planBadge) planBadge.className = __isPremium ? "pill gold" : "pill";
+            forEachNode(planBadgeEls, (el) => {
+                el.textContent = __isPremium ? "PREMIUM PLAN" : "FREE PLAN";
+                el.className = __isPremium ? "pill gold" : "pill";
+            });
 
-            if (premiumBadge) premiumBadge.style.display = __isPremium ? "inline-block" : "none";
-            if (goPremium) goPremium.style.display = __isPremium ? "none" : "inline-block";
+            forEachNode(premiumBadgeEls, (el) => {
+                el.style.display = __isPremium ? "inline-block" : "none";
+            });
+
+            forEachNode(goPremiumEls, (el) => {
+                el.style.display = __isPremium ? "none" : "inline-block";
+            });
 
             updateCountHint();
             updateRefreshUI();
@@ -1000,11 +1331,67 @@ Spotimaker neyi farklı yapar?
             return false;
         }
 
-        function updateCountHint() {
-            if (!countHint || !countInput) return;
-            if (countVal) countVal.textContent = String(countInput.value);
+        function setSpotifyDisconnectedUI() {
+            const statusText = "Spotify bağlı değil";
+            forEachNode(spotifyStatusEls, (el) => {
+                el.textContent = statusText;
+                el.style.background = "rgba(255,255,255,.08)";
+                el.style.color = "rgba(255,255,255,.72)";
+            });
+            forEachNode(spotifyStatusTextEls, (el) => { el.textContent = statusText; });
 
-            const v = Number(countInput.value || 20);
+            forEachNode(spotifyLinkEls, (el) => {
+                el.textContent = "Spotify bağla";
+                el.href = "/login?force=1";
+                el.style.pointerEvents = "auto";
+                el.style.opacity = "1";
+            });
+
+            forEachNode(logoutLinkEls, (el) => {
+                el.style.display = "none";
+            });
+        }
+
+        function setSpotifyConnectedUI(name = "") {
+            const connectedName = name || "OK";
+            const connectedText = "Spotify bağlı: " + connectedName;
+            forEachNode(spotifyStatusEls, (el) => {
+                el.textContent = connectedText;
+                el.style.background = "rgba(34,197,94,.20)";
+                el.style.color = "#fff";
+            });
+            forEachNode(spotifyStatusTextEls, (el) => { el.textContent = connectedName; });
+
+            forEachNode(spotifyLinkEls, (el) => {
+                el.textContent = "Hesap değiştir";
+                el.href = "/switch-account";
+                el.style.pointerEvents = "auto";
+                el.style.opacity = "1";
+            });
+
+            forEachNode(logoutLinkEls, (el) => {
+                el.style.display = "inline-block";
+            });
+        }
+
+        function toggleMobileMenu(show) {
+            if (!mobileMenu) return;
+            if (show) {
+                mobileMenu.classList.add("show");
+            } else {
+                mobileMenu.classList.remove("show");
+            }
+        }
+
+        function updateCountHint() {
+            if (countInput) {
+                const clamped = clampCount(Number(countInput.value || COUNT_MIN));
+                syncCountDisplays(clamped);
+            }
+
+            if (!countHint || !countInput) return;
+
+            const v = Number(countInput.value || COUNT_MIN);
 
             if (__isPremium) {
                 countHint.innerHTML = "✅ <b>Premium:</b> 200 şarkıya kadar oluşturabilirsin.";
@@ -1012,8 +1399,7 @@ Spotimaker neyi farklı yapar?
                 return;
             }
 
-            // Free
-            if (v > 40) {
+            if (v > COUNT_MAX_FREE) {
                 countHint.innerHTML =
                     "⚠️ Bu noktadan sonrası Premium kalitesi.<br/>Daha akışkan ve isabetli listeler için Premium’a geç.";
                 countHint.style.color = "rgba(255,255,255,.95)";
@@ -1056,6 +1442,27 @@ Spotimaker neyi farklı yapar?
         }
 
         countInput?.addEventListener("input", updateCountHint);
+        countMinus?.addEventListener("click", () => {
+            if (!countInput) return;
+            const next = clampCount(Number(countInput.value || COUNT_MIN) - COUNT_STEP);
+            countInput.value = String(next);
+            updateCountHint();
+        });
+        countPlus?.addEventListener("click", () => {
+            if (!countInput) return;
+            const next = clampCount(Number(countInput.value || COUNT_MIN) + COUNT_STEP);
+            countInput.value = String(next);
+            updateCountHint();
+        });
+        text?.addEventListener("input", updateGenerateButtonState);
+        menuToggle?.addEventListener("click", () => toggleMobileMenu(true));
+        menuClose?.addEventListener("click", () => toggleMobileMenu(false));
+        mobileMenu?.addEventListener("click", (e) => {
+            if (e.target === mobileMenu) toggleMobileMenu(false);
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") toggleMobileMenu(false);
+        });
 
         // ---------- Spotify status ----------
         // ---------- Spotify status ----------
@@ -1065,42 +1472,19 @@ Spotimaker neyi farklı yapar?
                 const s = await r.json();
 
                 if (!betaBlocked && betaAccessBanner) betaAccessBanner.style.display = "none";
-
-                if (!spotifyStatus || !spotifyLink) return;
-
                 if (s.connected) {
                     __isPremium = Boolean(s.premium);
-
-                    spotifyStatus.textContent = "Spotify bağlı: " + (s.user?.name || "OK");
-                    spotifyStatus.style.background = "rgba(34,197,94,.20)";
-                    spotifyStatus.style.color = "#fff";
-
-                    spotifyLink.textContent = "Hesap değiştir";
-                    spotifyLink.href = "/switch-account";
-                    spotifyLink.style.pointerEvents = "auto";
-                    spotifyLink.style.opacity = "1";
-
-                    if (logoutLink) logoutLink.style.display = "inline-block";
+                    setSpotifyConnectedUI(s.user?.name || "OK");
                 } else {
                     __isPremium = false;
-
-                    spotifyStatus.textContent = "Spotify bağlı değil";
-                    spotifyStatus.style.background = "rgba(255,255,255,.08)";
-                    spotifyStatus.style.color = "rgba(255,255,255,.72)";
-
-                    spotifyLink.textContent = "Spotify bağla";
-                    spotifyLink.href = "/login?force=1";
-                    spotifyLink.style.pointerEvents = "auto";
-                    spotifyLink.style.opacity = "1";
-
-                    if (logoutLink) logoutLink.style.display = "none";
+                    setSpotifyDisconnectedUI();
                 }
 
                 applyPlanUI();
 
             } catch (e) {
                 console.warn("refreshSpotifyStatus hata:", e);
-                if (logoutLink) logoutLink.style.display = "none";
+                forEachNode(logoutLinkEls, (el) => (el.style.display = "none"));
                 maybeShowAllowlistNoticeFromError(e);
             }
         }
@@ -1112,10 +1496,8 @@ Spotimaker neyi farklı yapar?
                 if (!resp.ok) return;
                 const data = await resp.json().catch(() => ({}));
 
-                if (data?.profile?.display_name && spotifyStatus && spotifyStatus.textContent.includes("Spotify bağlı değil")) {
-                    spotifyStatus.textContent = "Spotify bağlı: " + data.profile.display_name;
-                    spotifyStatus.style.background = "rgba(34,197,94,.20)";
-                    spotifyStatus.style.color = "#fff";
+                if (data?.profile?.display_name) {
+                    setSpotifyConnectedUI(data.profile.display_name);
                 }
             } catch (e) {
                 maybeShowAllowlistNoticeFromError(e);
@@ -1343,6 +1725,8 @@ Spotimaker neyi farklı yapar?
 
             if (btn.dataset.loading === "1") return;
             btn.dataset.loading = "1";
+            btn.textContent = "Oluşturuluyor...";
+            updateGenerateButtonState();
 
             refreshStatus.dataset.loading = "0";
             refreshStatus.style.display = "none";
@@ -1383,8 +1767,9 @@ Spotimaker neyi farklı yapar?
                 }
             } finally {
                 finishLoading();
-                if (!betaBlocked) btn.disabled = false;
                 btn.dataset.loading = "0";
+                btn.textContent = "Playlist oluştur";
+                updateGenerateButtonState();
             }
         };
 
@@ -1512,6 +1897,8 @@ Spotimaker neyi farklı yapar?
             await verifySpotifyAccess();
             await refreshSpotifyStatus();
             setTimeout(refreshSpotifyStatus, 600);
+            updateCountHint();
+            updateGenerateButtonState();
 
         });
     </script>
