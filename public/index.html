@@ -118,7 +118,7 @@
         }
 
         .landing-section {
-            margin-top: 46px;
+            margin-top: 64px;
         }
 
         .landing-section h2 {
@@ -134,7 +134,7 @@
         }
 
         .landing-card {
-            padding: 22px;
+            padding: 24px;
             border-radius: 18px;
             border: 1px solid var(--line);
             background: rgba(255,255,255,.04);
@@ -166,7 +166,7 @@
         }
 
         .landing-step {
-            padding: 18px 20px;
+            padding: 22px;
             border-radius: 16px;
             border: 1px solid var(--line);
             background: rgba(18,18,26,.75);
@@ -181,6 +181,77 @@
             text-transform: uppercase;
             letter-spacing: .12em;
             color: rgba(255,255,255,.55);
+        }
+
+        .landing-step p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .landing-premium {
+            padding: 26px;
+            border-radius: 20px;
+            border: 1px solid var(--line);
+            background: rgba(18,18,26,.7);
+            display: grid;
+            gap: 18px;
+        }
+
+        .landing-premium p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .landing-premium ul {
+            margin: 0;
+            padding-left: 18px;
+            color: rgba(255,255,255,.88);
+        }
+
+        .landing-premium li {
+            margin: 6px 0;
+        }
+
+        .landing-premium-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .example-card {
+            display: grid;
+            gap: 12px;
+        }
+
+        .example-card .landing-example {
+            margin-top: 0;
+        }
+
+        .copy-btn {
+            align-self: flex-start;
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity .6s ease, transform .6s ease;
+        }
+
+        .reveal.reveal--visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .topbar {
@@ -1072,6 +1143,10 @@
             .landing-hero h1 {
                 font-size: 30px;
             }
+
+            .landing-premium {
+                padding: 22px;
+            }
         }
 
         @media (min-width: 768px) {
@@ -1162,7 +1237,7 @@
             </header>
 
             <main class="landing-main">
-                <section class="landing-hero">
+                <section class="landing-hero reveal">
                     <div>
                         <h1>Ne dinlemek istediğini uzun uzun anlatmana gerek yok. Spotimaker seni zaten anlıyor.</h1>
                         <p>Ruh halini, dinleme alışkanlığını ve o anki bağlamını birlikte düşünür — müzik de ona göre oturur.</p>
@@ -1184,50 +1259,77 @@
                     </div>
                 </section>
 
-                <section id="landing-understand" class="landing-section">
+                <section id="landing-understand" class="landing-section reveal">
                     <h2>Spotimaker seni nasıl anlıyor?</h2>
                     <div class="landing-grid">
-                        <div class="landing-card">
+                        <div class="landing-card reveal">
                             <h3>Niyetini yakalar</h3>
                             <p>Yazdığın birkaç cümleden bile ne istediğini sezerek ortak bir niyette buluşur.</p>
                         </div>
-                        <div class="landing-card">
+                        <div class="landing-card reveal">
                             <h3>Akışı düşünür</h3>
                             <p>Playlist baştan sona bir hikâye gibi akar; enerji doğal biçimde yükselir ve dengede kalır.</p>
                         </div>
-                        <div class="landing-card">
+                        <div class="landing-card reveal">
                             <h3>Seni tanır ama kopyalamaz</h3>
                             <p>Alışkanlıklarına saygı duyar, aynı döngüye sokmaz. Her seferinde tanıdık ama taze kalır.</p>
                         </div>
                     </div>
                 </section>
 
-                <section class="landing-section">
+                <section class="landing-section reveal">
                     <h2>Nasıl çalışır?</h2>
                     <div class="landing-steps">
-                        <div class="landing-step"><span>1. Adım</span>Bağlan</div>
-                        <div class="landing-step"><span>2. Adım</span>Yaz</div>
-                        <div class="landing-step"><span>3. Adım</span>Kaydet</div>
+                        <div class="landing-step reveal">
+                            <span>1. Adım</span>
+                            Spotify ile bağlan
+                            <p>Dinleme alışkanlığını anlayalım.</p>
+                        </div>
+                        <div class="landing-step reveal">
+                            <span>2. Adım</span>
+                            Kısaca yaz
+                            <p>Modunu ve bağlamını tek cümlede söyle.</p>
+                        </div>
+                        <div class="landing-step reveal">
+                            <span>3. Adım</span>
+                            Kaydet ve dinle
+                            <p>Playlist’in hazır. Tek tıkla Spotify’a ekle.</p>
+                        </div>
                     </div>
                 </section>
 
-                <section class="landing-section">
+                <section class="landing-section reveal">
                     <h2>Örnekler</h2>
                     <div class="landing-grid">
-                        <div class="landing-card">
-                            <h3>“Gece sürüşü, düşük tempolu ama kararlı.”</h3>
-                            <p>Geceye yakışan sade, uzun akış.</p>
-                            <div class="landing-example">Lo-fi, ambient ve hafif ritimler.</div>
+                        <div class="landing-card example-card reveal">
+                            <h3>Gece yürüyüşü</h3>
+                            <div class="landing-example">“Gece yürüyüşü, sakin ama ritmik. Türkçe alternatif olsun.”</div>
+                            <button class="copy-btn" type="button" data-copy-text="Gece yürüyüşü, sakin ama ritmik. Türkçe alternatif olsun.">Kopyala</button>
                         </div>
-                        <div class="landing-card">
-                            <h3>“Sabah koşusu, enerji yükselsin.”</h3>
-                            <p>Tempo adım adım yükselir.</p>
-                            <div class="landing-example">Indie pop + dinamik elektronik.</div>
+                        <div class="landing-card example-card reveal">
+                            <h3>Odak</h3>
+                            <div class="landing-example">“Ders çalışacağım, söz az olsun. Lo-fi / ambient, dikkat dağıtmasın.”</div>
+                            <button class="copy-btn" type="button" data-copy-text="Ders çalışacağım, söz az olsun. Lo-fi / ambient, dikkat dağıtmasın.">Kopyala</button>
                         </div>
-                        <div class="landing-card">
-                            <h3>“Ders çalışma, odağı koru.”</h3>
-                            <p>Arka planda akıp giden sakin akış.</p>
-                            <div class="landing-example">Minimal ve dikkat dağıtmayan seçkiler.</div>
+                        <div class="landing-card example-card reveal">
+                            <h3>Gym</h3>
+                            <div class="landing-example">“Gym için yüksek tempo. Kontrollü agresif. Rap + elektronik karışık.”</div>
+                            <button class="copy-btn" type="button" data-copy-text="Gym için yüksek tempo. Kontrollü agresif. Rap + elektronik karışık.">Kopyala</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="landing-section reveal">
+                    <h2>Premium’u keşfet</h2>
+                    <div class="landing-premium reveal">
+                        <p>Daha iyi eşleşme, daha akıcı akış ve daha yüksek limit.</p>
+                        <ul>
+                            <li>Daha akıcı enerji akışı</li>
+                            <li>Tek tıkla aynı vibe’da alternatif</li>
+                            <li>Spotify’ya kaydetmede daha yüksek limit</li>
+                        </ul>
+                        <div class="landing-premium-actions">
+                            <a class="btn" href="/premium.html">Premium’u incele</a>
                         </div>
                     </div>
                 </section>
@@ -1492,6 +1594,8 @@ Spotimaker neyi farklı yapar?
         const landingSection = document.getElementById("landing");
         const appSection = document.getElementById("app");
 
+        let landingRevealObserver = null;
+
         const COUNT_MIN = 20;
         const COUNT_STEP = 5;
         const COUNT_MAX_PREMIUM = 200;
@@ -1718,6 +1822,67 @@ Spotimaker neyi farklı yapar?
         function setAuthVisibility(isConnected) {
             if (landingSection) landingSection.classList.toggle("hidden", isConnected);
             if (appSection) appSection.classList.toggle("hidden", !isConnected);
+
+            if (isConnected) {
+                if (landingRevealObserver) landingRevealObserver.disconnect();
+            } else {
+                initLandingReveal();
+            }
+        }
+
+        function initLandingReveal() {
+            if (!landingSection) return;
+            const targets = landingSection.querySelectorAll(".reveal");
+            if (!targets.length) return;
+
+            const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+            if (prefersReduced.matches || !("IntersectionObserver" in window)) {
+                targets.forEach((el) => el.classList.add("reveal--visible"));
+                return;
+            }
+
+            if (landingRevealObserver) landingRevealObserver.disconnect();
+            landingRevealObserver = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((entry) => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add("reveal--visible");
+                            landingRevealObserver.unobserve(entry.target);
+                        }
+                    });
+                },
+                { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
+            );
+
+            targets.forEach((el) => landingRevealObserver.observe(el));
+        }
+
+        function initLandingExampleCopy() {
+            if (!landingSection) return;
+            const buttons = landingSection.querySelectorAll(".copy-btn");
+            if (!buttons.length) return;
+
+            buttons.forEach((btn) => {
+                btn.addEventListener("click", async () => {
+                    const textToCopy = btn.getAttribute("data-copy-text") || "";
+                    if (!textToCopy) return;
+                    try {
+                        await navigator.clipboard.writeText(textToCopy);
+                        showToast("Kopyalandı.");
+                    } catch (e) {
+                        const helper = document.createElement("textarea");
+                        helper.value = textToCopy;
+                        helper.style.position = "fixed";
+                        helper.style.opacity = "0";
+                        document.body.appendChild(helper);
+                        helper.focus();
+                        helper.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(helper);
+                        showToast("Kopyalandı.");
+                    }
+                });
+            });
         }
 
         function updateCountHint() {
@@ -2238,6 +2403,8 @@ Spotimaker neyi farklı yapar?
             __isPremium = false;
             setAuthVisibility(false);
             applyPlanUI();
+            initLandingReveal();
+            initLandingExampleCopy();
             await verifySpotifyAccess();
             await refreshSpotifyStatus();
             setTimeout(refreshSpotifyStatus, 600);
