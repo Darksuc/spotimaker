@@ -33,9 +33,154 @@
         }
 
         .page {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 18px auto 100px;
             padding: 0 16px 120px;
+        }
+
+        .landing-page {
+            padding-bottom: 80px;
+        }
+
+        .landing-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 18px 20px;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: rgba(18,18,26,.78);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.28);
+        }
+
+        .landing-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            font-size: 20px;
+        }
+
+        .landing-brand span {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .landing-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .landing-hero {
+            margin-top: 42px;
+            padding: 38px;
+            border: 1px solid var(--line);
+            border-radius: 26px;
+            background: rgba(18,18,26,.86);
+            box-shadow: 0 24px 70px rgba(0,0,0,.28);
+            display: grid;
+            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            align-items: center;
+        }
+
+        .landing-hero h1 {
+            font-size: 38px;
+            margin: 0 0 12px;
+            letter-spacing: -.5px;
+        }
+
+        .landing-hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 17px;
+            max-width: 60ch;
+        }
+
+        .landing-cta-group {
+            margin-top: 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .landing-meta {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .landing-section {
+            margin-top: 46px;
+        }
+
+        .landing-section h2 {
+            margin: 0 0 16px;
+            font-size: 24px;
+            letter-spacing: -.2px;
+        }
+
+        .landing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .landing-card {
+            padding: 22px;
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.04);
+            min-height: 150px;
+        }
+
+        .landing-card h3 {
+            margin: 0 0 8px;
+            font-size: 17px;
+        }
+
+        .landing-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .landing-example {
+            font-size: 13px;
+            color: rgba(255,255,255,.82);
+            margin-top: 10px;
+        }
+
+        .landing-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+        }
+
+        .landing-step {
+            padding: 18px 20px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(18,18,26,.75);
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .landing-step span {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: rgba(255,255,255,.55);
         }
 
         .topbar {
@@ -314,6 +459,24 @@
             align-items: flex-start;
             flex-wrap: wrap;
             margin-bottom: 18px;
+        }
+
+        .app-header {
+            padding: 12px 16px;
+            gap: 12px;
+        }
+
+        .app-header .brand {
+            min-width: unset;
+            flex: 0 1 auto;
+        }
+
+        .app-header .brand-sub {
+            display: none;
+        }
+
+        .app-header .badges {
+            margin-top: 0;
         }
 
         .hero-copy {
@@ -856,8 +1019,7 @@
             .nav,
             .beta-note,
             .topbar > .beta-subtext,
-            .slider-wrap,
-            #premiumCard {
+            .slider-wrap {
                 display: none;
             }
 
@@ -897,6 +1059,19 @@
             textarea {
                 min-height: 180px;
             }
+
+            .landing-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .landing-hero {
+                padding: 26px;
+            }
+
+            .landing-hero h1 {
+                font-size: 30px;
+            }
         }
 
         @media (min-width: 768px) {
@@ -927,8 +1102,7 @@
             }
 
             .beta-note,
-            .topbar > .beta-subtext,
-            #premiumCard {
+            .topbar > .beta-subtext {
                 display: block;
             }
 
@@ -963,198 +1137,236 @@
 </head>
 
 <body>
-    <div class="page">
-        <header class="topbar">
-            <div class="topbar-mobile">
-                <button id="menuToggle" class="hamburger" type="button" aria-label="Menüyü aç">
-                    &#9776;
-                </button>
-                <div class="mobile-brand" aria-label="Spotimaker">
-                    <div class="brand-name">Spotimaker</div>
-                    <div class="brand-sub">Seni anlayan müzik akışı.</div>
-                </div>
-                <div class="logo" aria-hidden="true" style="flex:0 0 auto;">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
-                        <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                        <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                </div>
-            </div>
-            <div class="brand">
-                <div class="logo" aria-hidden="true">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
-                        <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                        <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                </div>
-
-                <div>
-                    <div class="brand-name">Spotimaker</div>
-                    <div class="brand-sub">Seni anlayan müzik akışı.</div>
-
-                    <div class="badges">
-                        <div data-spotify-status id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
-                        <span data-plan-badge id="planBadge" class="pill">Ücretsiz Plan</span>
-                        <span data-premium-badge id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
-                        <span class="pill beta-pill">Sınırlı Beta</span>
+    <section id="landing">
+        <div class="page landing-page">
+            <header class="landing-header">
+                <div class="landing-brand">
+                    <div class="logo" aria-hidden="true">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                            <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
                     </div>
-                    <div id="spotifyMicrocopy" class="beta-subtext" style="display:none;">Tadını aldık. Her şeyi kontrol etmene gerek yok.</div>
-                    <div class="beta-note">
-                        <div class="beta-subtext">Spotimaker şu anda sınırlı bir beta sürecindedir. Erişim yalnızca onaylı hesaplar içindir.</div>
-                    </div>
-                </div>
-            </div>
-
-            <nav class="nav">
-                <button id="aboutOpen" class="ghost-btn btn" type="button">Nedir?</button>
-                <a href="/premium.html" class="navlink btn" style="padding:10px 14px;">Premium</a>
-                <a href="/beta.html" class="navlink btn" style="padding:10px 14px;">Beta erişimi talep et</a>
-                <a data-spotify-link id="spotifyLink" href="/login" class="navbtn btn" target="_self">Spotify bağla</a>
-                <a data-logout-link id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
-            </nav>
-            <div class="beta-subtext" style="margin-top:6px; text-align:right; flex:1 1 100%;">
-                Sınırlı beta: erişim yalnızca onaylı hesaplar içindir.
-            </div>
-        </header>
-
-        <div id="mobileMenu" class="mobile-menu-backdrop" role="dialog" aria-modal="true">
-            <div class="mobile-menu">
-                <div class="menu-row">
-                    <h3 style="margin:0;">Spotimaker</h3>
-                    <button id="menuClose" class="modal-close" type="button">Kapat</button>
-                </div>
-                <div class="badges" style="margin-top:8px; gap:10px;">
-                    <div data-spotify-status class="spotify-badge">Spotify bağlı değil</div>
-                    <span data-plan-badge class="pill">Ücretsiz Plan</span>
-                    <span data-premium-badge class="pill gold" style="display:none;">PREMIUM</span>
-                    <span class="pill beta-pill">Sınırlı Beta</span>
-                </div>
-                <div class="menu-meta">Spotify: <span data-spotify-status-text>Spotify bağlı değil</span></div>
-                <div class="menu-links">
-                    <a href="/premium.html" class="btn">Premium</a>
-                    <a href="/beta.html" class="btn">Beta süreci</a>
-                    <a data-spotify-link href="/login" class="btn">Hesap</a>
-                    <a data-logout-link href="/logout" class="btn" style="display:none;">Çıkış yap</a>
-                </div>
-            </div>
-        </div>
-
-        <main class="main-card">
-            <div class="hero">
-                <div class="hero-copy">
-                    <h1 class="h1">Ne dinlemek istediğini uzun uzun anlatmana gerek yok. Spotimaker seni zaten anlıyor.</h1>
-                    <p class="p">Ruh halini, dinleme alışkanlığını ve o anki bağlamını birlikte düşünür — müzik de ona göre oturur.</p>
-                    <div class="hero-cta">
-                        <a data-spotify-link href="/login" class="primary-btn btn">Spotify ile dene</a>
-                        <div class="cta-sub">2 dakika • kurulum yok • sadece senin vibe’ın</div>
-                    </div>
-                </div>
-                <div class="hero-visual" aria-hidden="true">
-                    <svg width="220" height="180" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="16" y="20" width="188" height="140" rx="20" stroke="rgba(255,255,255,.18)" stroke-width="2"/>
-                        <circle cx="92" cy="90" r="26" stroke="rgba(255,255,255,.7)" stroke-width="2"/>
-                        <path d="M76 88c-6-16 4-34 22-34 18 0 28 18 22 34" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M66 104c14 18 33 26 54 18" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M54 58c-10 6-16 18-16 32s6 26 16 32" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M166 58c10 6 16 18 16 32s-6 26-16 32" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M132 120c14 6 28 6 42 0" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </div>
-            </div>
-
-            <section class="understand">
-                <h2 class="understand-title">Spotimaker seni nasıl anlıyor?</h2>
-                <div class="understand-grid">
-                    <div class="understand-card">
-                        <h3>Niyetini yakalar</h3>
-                        <p>Ne yaptığını ve neye ihtiyacın olduğunu birlikte düşünür. Yazdığından fazlasını sakin bir şekilde tamamlar.</p>
-                    </div>
-                    <div class="understand-card">
-                        <h3>Akışı düşünür</h3>
-                        <p>Playlist baştan sona tek parça gibi akar. Enerji doğal biçimde yükselir ve dengede kalır.</p>
-                    </div>
-                    <div class="understand-card">
-                        <h3>Seni tanır ama kopyalamaz</h3>
-                        <p>Alışkanlıklarına saygı duyar ama aynı döngüye sokmaz. Her seferinde taze ama tanıdık kalır.</p>
-                    </div>
-                </div>
-            </section>
-
-            <div id="betaAccessBanner" class="mini-card" style="display:none; margin-top:6px;">
-                <div style="font-weight:800;">Bu hesap için beta erişimi yok</div>
-                <div id="betaAccessMessage" class="beta-subtext" style="margin-top:4px;">Erişim onayı gerektiğinde <a href="/beta.html" class="navlink" style="padding:4px 8px;">beta sayfası</a> üzerinden talep bırakabilirsin.</div>
-            </div>
-
-            <textarea id="text" placeholder="Kendin gibi yaz. Kısa bir cümle yeter."></textarea>
-
-            <div class="hint" style="opacity:.85;">Örnek: "Gece yürüyüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
-
-            <div class="count-control" aria-label="Şarkı sayısı">
-                <div class="count-label">
-                    <span class="muted" style="font-size:13px;">Şarkı sayısı</span>
-                    <span class="count-helper">20–200</span>
-                </div>
-                <div class="count-stepper" aria-live="polite">
-                    <button id="countMinus" class="count-btn" type="button" aria-label="Şarkı sayısını azalt">−</button>
-                    <div id="countDisplay" class="count-value">20</div>
-                    <button id="countPlus" class="count-btn" type="button" aria-label="Şarkı sayısını artır">+</button>
-                </div>
-            </div>
-
-            <div class="slider-wrap count-desktop">
-                <div class="slider-top">
                     <div>
-                        <div class="muted" style="font-size:13px;">Şarkı sayısı</div>
-                        <div id="rangeHint" style="color:rgba(255,255,255,.75); font-weight:700; font-size:12px; margin-top:4px;">20 - 40</div>
+                        Spotimaker
+                        <span>Seni anlayan müzik akışı.</span>
                     </div>
-                    <div style="font-weight:900; font-size:20px; letter-spacing:-.2px;"> <span id="countVal">20</span> şarkı</div>
+                </div>
+                <nav class="landing-nav">
+                    <a class="navlink btn" href="#landing-understand">Nedir?</a>
+                    <a class="navlink btn" href="/premium.html">Premium</a>
+                    <a class="navlink btn" href="/beta.html">Beta</a>
+                    <a class="btn cta" href="/login">Spotify ile bağlan</a>
+                </nav>
+            </header>
+
+            <main class="landing-main">
+                <section class="landing-hero">
+                    <div>
+                        <h1>Ne dinlemek istediğini uzun uzun anlatmana gerek yok. Spotimaker seni zaten anlıyor.</h1>
+                        <p>Ruh halini, dinleme alışkanlığını ve o anki bağlamını birlikte düşünür — müzik de ona göre oturur.</p>
+                        <div class="landing-cta-group">
+                            <a class="btn cta" href="/login">Spotify ile bağlan</a>
+                            <div class="landing-meta">2 dakika • kurulum yok • tamamen senin akışın</div>
+                        </div>
+                    </div>
+                    <div class="hero-visual" aria-hidden="true">
+                        <svg width="220" height="180" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="16" y="20" width="188" height="140" rx="20" stroke="rgba(255,255,255,.18)" stroke-width="2"/>
+                            <circle cx="92" cy="90" r="26" stroke="rgba(255,255,255,.7)" stroke-width="2"/>
+                            <path d="M76 88c-6-16 4-34 22-34 18 0 28 18 22 34" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M66 104c14 18 33 26 54 18" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M54 58c-10 6-16 18-16 32s6 26 16 32" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M166 58c10 6 16 18 16 32s-6 26-16 32" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M132 120c14 6 28 6 42 0" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                </section>
+
+                <section id="landing-understand" class="landing-section">
+                    <h2>Spotimaker seni nasıl anlıyor?</h2>
+                    <div class="landing-grid">
+                        <div class="landing-card">
+                            <h3>Niyetini yakalar</h3>
+                            <p>Yazdığın birkaç cümleden bile ne istediğini sezerek ortak bir niyette buluşur.</p>
+                        </div>
+                        <div class="landing-card">
+                            <h3>Akışı düşünür</h3>
+                            <p>Playlist baştan sona bir hikâye gibi akar; enerji doğal biçimde yükselir ve dengede kalır.</p>
+                        </div>
+                        <div class="landing-card">
+                            <h3>Seni tanır ama kopyalamaz</h3>
+                            <p>Alışkanlıklarına saygı duyar, aynı döngüye sokmaz. Her seferinde tanıdık ama taze kalır.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="landing-section">
+                    <h2>Nasıl çalışır?</h2>
+                    <div class="landing-steps">
+                        <div class="landing-step"><span>1. Adım</span>Bağlan</div>
+                        <div class="landing-step"><span>2. Adım</span>Yaz</div>
+                        <div class="landing-step"><span>3. Adım</span>Kaydet</div>
+                    </div>
+                </section>
+
+                <section class="landing-section">
+                    <h2>Örnekler</h2>
+                    <div class="landing-grid">
+                        <div class="landing-card">
+                            <h3>“Gece sürüşü, düşük tempolu ama kararlı.”</h3>
+                            <p>Geceye yakışan sade, uzun akış.</p>
+                            <div class="landing-example">Lo-fi, ambient ve hafif ritimler.</div>
+                        </div>
+                        <div class="landing-card">
+                            <h3>“Sabah koşusu, enerji yükselsin.”</h3>
+                            <p>Tempo adım adım yükselir.</p>
+                            <div class="landing-example">Indie pop + dinamik elektronik.</div>
+                        </div>
+                        <div class="landing-card">
+                            <h3>“Ders çalışma, odağı koru.”</h3>
+                            <p>Arka planda akıp giden sakin akış.</p>
+                            <div class="landing-example">Minimal ve dikkat dağıtmayan seçkiler.</div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </section>
+
+    <section id="app" class="hidden">
+        <div class="page app-page">
+            <header class="topbar app-header">
+                <div class="topbar-mobile">
+                    <button id="menuToggle" class="hamburger" type="button" aria-label="Menüyü aç">
+                        &#9776;
+                    </button>
+                    <div class="mobile-brand" aria-label="Spotimaker">
+                        <div class="brand-name">Spotimaker</div>
+                    </div>
+                    <div class="logo" aria-hidden="true" style="flex:0 0 auto;">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                            <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="brand">
+                    <div class="logo" aria-hidden="true">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3c4.9 0 9 4 9 9s-4.1 9-9 9-9-4-9-9 4.1-9 9-9z" stroke="currentColor" stroke-width="2" />
+                            <path d="M9 8c3 0 6 1 6 3s-3 3-6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M9 14c3 0 6 1 6 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
+
+                    <div>
+                        <div class="brand-name">Spotimaker</div>
+                        <div class="badges">
+                            <div data-spotify-status id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
+                            <span data-plan-badge id="planBadge" class="pill">Ücretsiz Plan</span>
+                            <span data-premium-badge id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
+                        </div>
+                    </div>
                 </div>
 
-                <input id="count" type="range" min="20" max="40" step="5" value="20" style="margin:6px 0 2px;" />
-                <div id="countHint" style="margin-top:8px; opacity:.9; font-size:12px;"></div>
+                <nav class="nav">
+                    <button id="aboutOpen" class="ghost-btn btn" type="button">Nedir?</button>
+                    <a href="/premium.html" class="navlink btn" style="padding:10px 14px;">Premium</a>
+                    <a href="/beta.html" class="navlink btn" style="padding:10px 14px;">Beta</a>
+                    <a data-spotify-link id="spotifyLink" href="/login" class="navbtn btn" target="_self">Spotify bağla</a>
+                    <a data-logout-link id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
+                </nav>
+            </header>
 
-                <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
-                    <a href="/premium.html" data-go-premium id="goPremium" class="btn" style="font-size:13px; padding:9px 12px;">Premium’a geç →</a>
-                    <div class="slider-note">Ücretsiz: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.</div>
+            <div id="mobileMenu" class="mobile-menu-backdrop" role="dialog" aria-modal="true">
+                <div class="mobile-menu">
+                    <div class="menu-row">
+                        <h3 style="margin:0;">Spotimaker</h3>
+                        <button id="menuClose" class="modal-close" type="button">Kapat</button>
+                    </div>
+                    <div class="badges" style="margin-top:8px; gap:10px;">
+                        <div data-spotify-status class="spotify-badge">Spotify bağlı değil</div>
+                        <span data-plan-badge class="pill">Ücretsiz Plan</span>
+                        <span data-premium-badge class="pill gold" style="display:none;">PREMIUM</span>
+                    </div>
+                    <div class="menu-meta">Spotify: <span data-spotify-status-text>Spotify bağlı değil</span></div>
+                    <div class="menu-links">
+                        <button id="aboutOpenMobile" class="btn" type="button">Nedir?</button>
+                        <a href="/premium.html" class="btn">Premium</a>
+                        <a href="/beta.html" class="btn">Beta süreci</a>
+                        <a data-spotify-link href="/login" class="btn">Hesap</a>
+                        <a data-logout-link href="/logout" class="btn" style="display:none;">Çıkış yap</a>
+                    </div>
                 </div>
             </div>
 
-            <div class="sticky-cta">
-                <button id="btn" class="primary-btn btn cta" style="flex:1 1 280px; font-size:18px;">Playlist oluştur</button>
-            </div>
+            <main class="main-card">
+                <div id="betaAccessBanner" class="mini-card" style="display:none; margin-top:6px;">
+                    <div style="font-weight:800;">Bu hesap için beta erişimi yok</div>
+                    <div id="betaAccessMessage" class="beta-subtext" style="margin-top:4px;">Erişim onayı gerektiğinde <a href="/beta.html" class="navlink" style="padding:4px 8px;">beta sayfası</a> üzerinden talep bırakabilirsin.</div>
+                </div>
 
-            <div id="premiumCard" class="card" style="margin-top:14px">
-                <h3 class="cardTitle" style="margin:0 0 10px 0; letter-spacing:-.1px;">Premium’u keşfet</h3>
-                <p class="cardDesc" style="margin-bottom:12px;">Premium: daha iyi eşleşme, daha akışkan enerji ve tek tıkla alternatifler.</p>
-                <ul style="margin:0 0 12px 18px; color:var(--muted); line-height:1.5;">
-                    <li>Daha akışkan enerji akışı</li>
-                    <li>Tek tıkla aynı vibe’da alternatif</li>
-                    <li>Spotify’a kaydetmede daha yüksek limit</li>
-                </ul>
-                <a href="/premium.html" class="btn white" style="margin-top:12px; display:inline-flex; gap:8px; align-items:center;">Premium’u keşfet →</a>
-            </div>
+                <textarea id="text" placeholder="Kendin gibi yaz. Kısa bir cümle yeter."></textarea>
 
-            <div id="loadingWrap" class="loadingWrap">
-                <div class="loadingTitle" id="loadingTitle">Playlist hazırlanıyor...</div>
-                <div class="barOuter"><div id="loadingBar" class="barInner"></div></div>
-                <div class="loadingSub" id="loadingSub">Bu genelde birkaç saniye sürer.</div>
-            </div>
+                <div class="hint" style="opacity:.85;">Örnek: "Gece yürüyüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
 
-            <div id="refreshArea" class="row" style="display:none; margin-top:12px; align-items:center; gap:10px;">
-                <button id="refreshBtn" class="ghost-btn">🔁 Alternatif üret (Premium)</button>
-                <span id="refreshHint" class="hint"></span>
-            </div>
-            <div id="refreshStatus" class="hint" style="display:none; margin-top:4px;">Alternatif hazırlanıyor…</div>
+                <div class="count-control" aria-label="Şarkı sayısı">
+                    <div class="count-label">
+                        <span class="muted" style="font-size:13px;">Şarkı sayısı</span>
+                        <span class="count-helper">20–200</span>
+                    </div>
+                    <div class="count-stepper" aria-live="polite">
+                        <button id="countMinus" class="count-btn" type="button" aria-label="Şarkı sayısını azalt">−</button>
+                        <div id="countDisplay" class="count-value">20</div>
+                        <button id="countPlus" class="count-btn" type="button" aria-label="Şarkı sayısını artır">+</button>
+                    </div>
+                </div>
 
-            <div class="row" style="margin-top:10px;">
-                <button id="feedbackOpenBtn" class="ghost-btn" type="button">Geri Bildirim</button>
-            </div>
+                <div class="slider-wrap count-desktop">
+                    <div class="slider-top">
+                        <div>
+                            <div class="muted" style="font-size:13px;">Şarkı sayısı</div>
+                            <div id="rangeHint" style="color:rgba(255,255,255,.75); font-weight:700; font-size:12px; margin-top:4px;">20 - 40</div>
+                        </div>
+                        <div style="font-weight:900; font-size:20px; letter-spacing:-.2px;"> <span id="countVal">20</span> şarkı</div>
+                    </div>
 
-            <div id="out"></div>
-        </main>
-    </div>
+                    <input id="count" type="range" min="20" max="40" step="5" value="20" style="margin:6px 0 2px;" />
+                    <div id="countHint" style="margin-top:8px; opacity:.9; font-size:12px;"></div>
+
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                        <a href="/premium.html" data-go-premium id="goPremium" class="btn" style="font-size:13px; padding:9px 12px;">Premium’a geç →</a>
+                        <div class="slider-note">Ücretsiz: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.</div>
+                    </div>
+                </div>
+
+                <div class="sticky-cta">
+                    <button id="btn" class="primary-btn btn cta" style="flex:1 1 280px; font-size:18px;">Playlist oluştur</button>
+                </div>
+
+                <div id="loadingWrap" class="loadingWrap">
+                    <div class="loadingTitle" id="loadingTitle">Playlist hazırlanıyor...</div>
+                    <div class="barOuter"><div id="loadingBar" class="barInner"></div></div>
+                    <div class="loadingSub" id="loadingSub">Bu genelde birkaç saniye sürer.</div>
+                </div>
+
+                <div id="refreshArea" class="row" style="display:none; margin-top:12px; align-items:center; gap:10px;">
+                    <button id="refreshBtn" class="ghost-btn">🔁 Alternatif üret (Premium)</button>
+                    <span id="refreshHint" class="hint"></span>
+                </div>
+                <div id="refreshStatus" class="hint" style="display:none; margin-top:4px;">Alternatif hazırlanıyor…</div>
+
+                <div class="row" style="margin-top:10px;">
+                    <button id="feedbackOpenBtn" class="ghost-btn" type="button">Geri Bildirim</button>
+                </div>
+
+                <div id="out"></div>
+            </main>
+        </div>
+    </section>
 
         <div id="feedbackModal" class="modal-backdrop" role="dialog" aria-modal="true">
             <div class="modal-card">
@@ -1277,6 +1489,8 @@ Spotimaker neyi farklı yapar?
         const menuToggle = document.getElementById("menuToggle");
         const menuClose = document.getElementById("menuClose");
         const mobileMenu = document.getElementById("mobileMenu");
+        const landingSection = document.getElementById("landing");
+        const appSection = document.getElementById("app");
 
         const COUNT_MIN = 20;
         const COUNT_STEP = 5;
@@ -1333,6 +1547,7 @@ Spotimaker neyi farklı yapar?
         const feedbackStatus = document.getElementById("feedbackStatus");
         const aboutModal = document.getElementById("aboutModal");
         const aboutOpen = document.getElementById("aboutOpen");
+        const aboutOpenMobile = document.getElementById("aboutOpenMobile");
         const aboutClose = document.getElementById("aboutClose");
         const aboutCloseCta = document.getElementById("aboutCloseCta");
         const betaAccessBanner = document.getElementById("betaAccessBanner");
@@ -1445,6 +1660,7 @@ Spotimaker neyi farklı yapar?
         }
 
         function setSpotifyDisconnectedUI() {
+            setAuthVisibility(false);
             const statusText = "Spotify bağlı değil";
             forEachNode(spotifyStatusEls, (el) => {
                 el.textContent = statusText;
@@ -1467,6 +1683,7 @@ Spotimaker neyi farklı yapar?
         }
 
         function setSpotifyConnectedUI(name = "") {
+            setAuthVisibility(true);
             const connectedName = name || "OK";
             const connectedText = "Spotify bağlı: " + connectedName;
             forEachNode(spotifyStatusEls, (el) => {
@@ -1496,6 +1713,11 @@ Spotimaker neyi farklı yapar?
             } else {
                 mobileMenu.classList.remove("show");
             }
+        }
+
+        function setAuthVisibility(isConnected) {
+            if (landingSection) landingSection.classList.toggle("hidden", isConnected);
+            if (appSection) appSection.classList.toggle("hidden", !isConnected);
         }
 
         function updateCountHint() {
@@ -1962,6 +2184,10 @@ Spotimaker neyi farklı yapar?
         });
 
         aboutOpen?.addEventListener("click", () => toggleAboutModal(true));
+        aboutOpenMobile?.addEventListener("click", () => {
+            toggleAboutModal(true);
+            toggleMobileMenu(false);
+        });
         aboutClose?.addEventListener("click", () => toggleAboutModal(false));
         aboutCloseCta?.addEventListener("click", () => toggleAboutModal(false));
         aboutModal?.addEventListener("click", (e) => {
@@ -2010,6 +2236,7 @@ Spotimaker neyi farklı yapar?
         window.addEventListener("load", async () => {
             // default free görünüm
             __isPremium = false;
+            setAuthVisibility(false);
             applyPlanUI();
             await verifySpotifyAccess();
             await refreshSpotifyStatus();
