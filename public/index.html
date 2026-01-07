@@ -25,7 +25,7 @@
         body {
             margin: 0;
             font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-            background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.18), transparent 60%), radial-gradient(1000px 700px at 80% 10%, rgba(59,130,246,.14), transparent 60%), var(--bg);
+            background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             animation: fadeIn 0.4s ease-out;
@@ -115,7 +115,7 @@
             align-items: center;
             justify-content: center;
             border: 1px solid var(--line);
-            background: linear-gradient(135deg, rgba(34,197,94,.24), rgba(59,130,246,.18));
+            background: rgba(255,255,255,.06);
             box-shadow: 0 12px 32px rgba(0,0,0,.28);
             flex: 0 0 auto;
         }
@@ -280,13 +280,13 @@
             }
 
         .navbtn {
-            color: #0b0b0f;
-            background: #fff;
+            color: #fff;
+            background: transparent;
             text-decoration: none;
-            padding: 12px 14px;
-            border-radius: 14px;
-            font-weight: 900;
-            border: 1px solid rgba(255,255,255,.2);
+            padding: 10px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            border: 1px solid var(--line);
             transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
         }
 
@@ -316,6 +316,11 @@
             margin-bottom: 18px;
         }
 
+        .hero-copy {
+            flex: 1 1 360px;
+            min-width: 260px;
+        }
+
         .h1 {
             margin: 6px 0 8px 0;
             font-size: 34px;
@@ -334,6 +339,78 @@
             color: var(--muted);
             margin-top: 12px;
             font-size: 13px;
+        }
+
+        .hero-cta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            margin-top: 14px;
+        }
+
+        .cta-sub {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .hero-cta .primary-btn {
+            max-width: 280px;
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            border-radius: 12px;
+        }
+
+        .hero-visual {
+            flex: 0 1 260px;
+            min-width: 220px;
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.04);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 12px 30px rgba(0,0,0,.2);
+        }
+
+        .understand {
+            margin: 16px 0 10px;
+            padding: 12px 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .understand-title {
+            margin: 0 0 12px;
+            font-size: 22px;
+            letter-spacing: -.2px;
+        }
+
+        .understand-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .understand-card {
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,.03);
+        }
+
+        .understand-card h3 {
+            margin: 0 0 6px;
+            font-size: 16px;
+        }
+
+        .understand-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
         }
 
         .hidden {
@@ -433,9 +510,9 @@
             font-weight: 900;
             cursor: pointer;
             transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
-            background: linear-gradient(135deg, rgba(163,230,53,0.9), rgba(74,222,128,0.95), rgba(34,197,94,0.95));
+            background: rgba(74,222,128,0.95);
             color: #0c1a0f;
-            box-shadow: 0 18px 40px rgba(34,197,94,0.3);
+            box-shadow: 0 12px 24px rgba(0,0,0,.28);
         }
 
         .sticky-cta {
@@ -894,7 +971,7 @@
                 </button>
                 <div class="mobile-brand" aria-label="Spotimaker">
                     <div class="brand-name">Spotimaker</div>
-                    <div class="brand-sub">Mood + vibe</div>
+                    <div class="brand-sub">Seni anlayan müzik akışı.</div>
                 </div>
                 <div class="logo" aria-hidden="true" style="flex:0 0 auto;">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -915,14 +992,15 @@
 
                 <div>
                     <div class="brand-name">Spotimaker</div>
-                    <div class="brand-sub">Ruh haline göre playlist.</div>
+                    <div class="brand-sub">Seni anlayan müzik akışı.</div>
 
                     <div class="badges">
                         <div data-spotify-status id="spotifyStatus" class="spotify-badge">Spotify bağlı değil</div>
-                        <span data-plan-badge id="planBadge" class="pill">FREE PLAN</span>
+                        <span data-plan-badge id="planBadge" class="pill">Ücretsiz Plan</span>
                         <span data-premium-badge id="premiumBadge" class="pill gold" style="display:none;">PREMIUM</span>
                         <span class="pill beta-pill">Sınırlı Beta</span>
                     </div>
+                    <div id="spotifyMicrocopy" class="beta-subtext" style="display:none;">Tadını aldık. Her şeyi kontrol etmene gerek yok.</div>
                     <div class="beta-note">
                         <div class="beta-subtext">Spotimaker şu anda sınırlı bir beta sürecindedir. Erişim yalnızca onaylı hesaplar içindir.</div>
                     </div>
@@ -933,7 +1011,7 @@
                 <button id="aboutOpen" class="ghost-btn btn" type="button">Nedir?</button>
                 <a href="/premium.html" class="navlink btn" style="padding:10px 14px;">Premium</a>
                 <a href="/beta.html" class="navlink btn" style="padding:10px 14px;">Beta erişimi talep et</a>
-                <a data-spotify-link id="spotifyLink" href="/login" class="navbtn btn cta" target="_self">Spotify bağla</a>
+                <a data-spotify-link id="spotifyLink" href="/login" class="navbtn btn" target="_self">Spotify bağla</a>
                 <a data-logout-link id="logoutLink" href="/logout" class="navlink btn" style="display:none;">Çıkış yap</a>
             </nav>
             <div class="beta-subtext" style="margin-top:6px; text-align:right; flex:1 1 100%;">
@@ -949,7 +1027,7 @@
                 </div>
                 <div class="badges" style="margin-top:8px; gap:10px;">
                     <div data-spotify-status class="spotify-badge">Spotify bağlı değil</div>
-                    <span data-plan-badge class="pill">FREE PLAN</span>
+                    <span data-plan-badge class="pill">Ücretsiz Plan</span>
                     <span data-premium-badge class="pill gold" style="display:none;">PREMIUM</span>
                     <span class="pill beta-pill">Sınırlı Beta</span>
                 </div>
@@ -965,19 +1043,53 @@
 
         <main class="main-card">
             <div class="hero">
-                <div>
-                    <h1 class="h1">Ruh halini yaz, playlistin hazır.</h1>
-                    <p class="p">Mood + ortam + his yeter.</p>
-                    <div class="hint" style="opacity:.85;">Örnek: "Gece sürüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
+                <div class="hero-copy">
+                    <h1 class="h1">Ne dinlemek istediğini uzun uzun anlatmana gerek yok. Spotimaker seni zaten anlıyor.</h1>
+                    <p class="p">Ruh halini, dinleme alışkanlığını ve o anki bağlamını birlikte düşünür — müzik de ona göre oturur.</p>
+                    <div class="hero-cta">
+                        <a data-spotify-link href="/login" class="primary-btn btn">Spotify ile dene</a>
+                        <div class="cta-sub">2 dakika • kurulum yok • sadece senin vibe’ın</div>
+                    </div>
+                </div>
+                <div class="hero-visual" aria-hidden="true">
+                    <svg width="220" height="180" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="16" y="20" width="188" height="140" rx="20" stroke="rgba(255,255,255,.18)" stroke-width="2"/>
+                        <circle cx="92" cy="90" r="26" stroke="rgba(255,255,255,.7)" stroke-width="2"/>
+                        <path d="M76 88c-6-16 4-34 22-34 18 0 28 18 22 34" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M66 104c14 18 33 26 54 18" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M54 58c-10 6-16 18-16 32s6 26 16 32" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M166 58c10 6 16 18 16 32s-6 26-16 32" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M132 120c14 6 28 6 42 0" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
                 </div>
             </div>
+
+            <section class="understand">
+                <h2 class="understand-title">Spotimaker seni nasıl anlıyor?</h2>
+                <div class="understand-grid">
+                    <div class="understand-card">
+                        <h3>Niyetini yakalar</h3>
+                        <p>Ne yaptığını ve neye ihtiyacın olduğunu birlikte düşünür. Yazdığından fazlasını sakin bir şekilde tamamlar.</p>
+                    </div>
+                    <div class="understand-card">
+                        <h3>Akışı düşünür</h3>
+                        <p>Playlist baştan sona tek parça gibi akar. Enerji doğal biçimde yükselir ve dengede kalır.</p>
+                    </div>
+                    <div class="understand-card">
+                        <h3>Seni tanır ama kopyalamaz</h3>
+                        <p>Alışkanlıklarına saygı duyar ama aynı döngüye sokmaz. Her seferinde taze ama tanıdık kalır.</p>
+                    </div>
+                </div>
+            </section>
 
             <div id="betaAccessBanner" class="mini-card" style="display:none; margin-top:6px;">
                 <div style="font-weight:800;">Bu hesap için beta erişimi yok</div>
                 <div id="betaAccessMessage" class="beta-subtext" style="margin-top:4px;">Erişim onayı gerektiğinde <a href="/beta.html" class="navlink" style="padding:4px 8px;">beta sayfası</a> üzerinden talep bırakabilirsin.</div>
             </div>
 
-            <textarea id="text" placeholder="Kendin gibi yaz. Mood + mekan + his yeter."></textarea>
+            <textarea id="text" placeholder="Kendin gibi yaz. Kısa bir cümle yeter."></textarea>
+
+            <div class="hint" style="opacity:.85;">Örnek: "Gece yürüyüşü, sakin ama ritmik. Örnek şarkı: Tuğkan - Kusura Bakma"</div>
 
             <div class="count-control" aria-label="Şarkı sayısı">
                 <div class="count-label">
@@ -1005,7 +1117,7 @@
 
                 <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
                     <a href="/premium.html" data-go-premium id="goPremium" class="btn" style="font-size:13px; padding:9px 12px;">Premium’a geç →</a>
-                    <div class="slider-note">Free: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.</div>
+                    <div class="slider-note">Ücretsiz: Spotify’ya kaydetme limiti (testte). Premium: daha yüksek limit + daha hızlı üretim.</div>
                 </div>
             </div>
 
@@ -1066,14 +1178,14 @@
                 <button id="aboutClose" class="modal-close" type="button">Kapat</button>
             </div>
             <p class="cardDesc" style="margin:12px 0 10px; white-space:pre-line;">
-Spotimaker, ‘o an ne dinlemek istiyorum?’ sorusunu tek cümlede çözer.
-Sen sadece ruh halini ve ortamını yazarsın; Spotimaker bunu mood + aktivite + tempo olarak yorumlar ve playlist’i sadece şarkı listesi gibi değil, baştan sona akan bir deneyim olarak kurar.
+Spotimaker, “ne dinlemek istiyorum” sorusunu açıklama yapmadan çözer.
+Ruh halini, dinleme alışkanlıklarını ve içinde bulunduğun bağlamı birlikte okur; böylece müzik, anlatmana gerek kalmadan oturur.
 
 Spotimaker neyi farklı yapar?
-• Niyet okur: ‘Sakin ama ritmik’, ‘ders odak’, ‘gece sürüşü’ gibi istekleri tür olarak değil his ve tempo olarak anlar.
-• Akışı korur: Playlist intro → yükseliş → peak → sakinleşme gibi doğal bir enerji eğrisiyle ilerler.
-• Dengeler: Tanıdık şarkılarla keşfi harmanlar, tek tipe sıkışmaz.
-• Kontrol verir: Premium’da aynı niyetten tek tıkla alternatif üretilebilir (Refresh). Aynı vibe, farklı yorum.
+• Niyeti yakalar: İstediğini tür olarak değil, neden olarak anlar.
+• Akışa göre düşünür: Enerji doğal biçimde yükselir ve dengede kalır.
+• Tanır ama hapsetmez: Alışkanlıklarını dikkate alır, aynı şarkılara sıkışmazsın.
+• Kontrolü hafifletir: Premium’da aynı niyetten tek tıkla alternatif üretilebilir (Refresh). Aynı vibe, farklı yorum.
             </p>
             <div class="row" style="margin-top:6px; gap:10px;">
                 <button id="aboutCloseCta" class="ghost-btn" type="button">Kapat</button>
@@ -1225,6 +1337,7 @@ Spotimaker neyi farklı yapar?
         const aboutCloseCta = document.getElementById("aboutCloseCta");
         const betaAccessBanner = document.getElementById("betaAccessBanner");
         const betaAccessMessage = document.getElementById("betaAccessMessage");
+        const spotifyMicrocopy = document.getElementById("spotifyMicrocopy");
 
         const betaMessageText = "Bu Spotify hesabı için beta erişimi bulunmuyor.\nSpotimaker şu anda sınırlı beta sürecindedir ve yalnızca onaylı kullanıcılar erişebilir.";
         let betaBlocked = false;
@@ -1287,7 +1400,7 @@ Spotimaker neyi farklı yapar?
             if (countHelper) countHelper.textContent = __isPremium ? "20–200" : "20–40";
 
             forEachNode(planBadgeEls, (el) => {
-                el.textContent = __isPremium ? "PREMIUM PLAN" : "FREE PLAN";
+                el.textContent = __isPremium ? "Premium Plan" : "Ücretsiz Plan";
                 el.className = __isPremium ? "pill gold" : "pill";
             });
 
@@ -1350,6 +1463,7 @@ Spotimaker neyi farklı yapar?
             forEachNode(logoutLinkEls, (el) => {
                 el.style.display = "none";
             });
+            if (spotifyMicrocopy) spotifyMicrocopy.style.display = "none";
         }
 
         function setSpotifyConnectedUI(name = "") {
@@ -1372,6 +1486,7 @@ Spotimaker neyi farklı yapar?
             forEachNode(logoutLinkEls, (el) => {
                 el.style.display = "inline-block";
             });
+            if (spotifyMicrocopy) spotifyMicrocopy.style.display = "block";
         }
 
         function toggleMobileMenu(show) {
@@ -1405,7 +1520,7 @@ Spotimaker neyi farklı yapar?
                 countHint.style.color = "rgba(255,255,255,.95)";
             } else {
                 countHint.innerHTML =
-                    "ℹ️ <b>Free:</b> 40 şarkıya kadar. Premium ile 200’e kadar.";
+                    "ℹ️ <b>Ücretsiz:</b> 40 şarkıya kadar. Premium ile 200’e kadar.";
                 countHint.style.color = "rgba(255,255,255,.75)";
             }
         }
@@ -1606,9 +1721,11 @@ Spotimaker neyi farklı yapar?
 
             out.innerHTML = `
               <div class="card">
-                <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin için yapıldı.</b></div>
+                <div style="opacity:.75; font-size:13px; margin-bottom:6px;"><b>Senin için anlaşıldı.</b></div>
                 <h2 class="cardTitle">${escapeHtml(data.title || "Playlist")}</h2>
                 <p class="cardDesc">${escapeHtml(data.description || "")}</p>
+                <div class="hint" style="margin-top:6px;">Bu playlist, dinleme alışkanlıkların ve o anki niyetin birleşerek oluşturuldu.</div>
+                <div class="hint" style="margin-top:6px;">Enerji dengesi playlist boyunca bilinçli biçimde kuruldu.</div>
                 <div class="tags">Etiketler: ${escapeHtml(tags)}</div>
 
                 <div style="margin-top:12px;">
@@ -1695,12 +1812,12 @@ Spotimaker neyi farklı yapar?
                     "beforeend",
                     `
                     <div class="mini-card" id="inlinePremiumUpsell">
-                        <h4>Premium Early Access</h4>
+                        <h4>Premium Erken Erişim</h4>
                         <ul>
-                            <li>🎯 Deeper mood & intent understanding</li>
-                            <li>🌊 Smooth energy flow, no sert sıçramalar</li>
-                            <li>🔁 One-click alternatif (Refresh)</li>
-                            <li>⚙️ Daha çok kontrol, daha az limit</li>
+                            <li>Daha net niyet okuma</li>
+                            <li>Daha akışkan enerji dengesi</li>
+                            <li>Tek tık alternatif (Refresh)</li>
+                            <li>Daha çok kontrol, daha az limit</li>
                         </ul>
                         <button class="ghost-btn" onclick="window.location.href='/premium.html'">Premium’a geç (₺29.90)</button>
                         <div class="hint" style="margin-top:6px;">Erken erişim fiyatı. İstediğin zaman iptal.</div>
